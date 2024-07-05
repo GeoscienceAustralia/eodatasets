@@ -1,7 +1,7 @@
 
 # This gdal version should match the "gdal=="
 # line in setup.py's "docker"
-FROM osgeo/gdal:ubuntu-small-3.3.2
+FROM ghcr.io/osgeo/gdal:ubuntu-small-3.6.3
 
 ENV DEBIAN_FRONTEND=noninteractive \
     LC_ALL=C.UTF-8 \
@@ -19,7 +19,7 @@ RUN apt-get update && \
       wget \
       python3-pip \
       # For Psycopg2
-      libpq-dev python-dev \
+      libpq-dev python3-dev \
     && apt-get autoclean && \
     apt-get autoremove && \
     rm -rf /var/lib/{apt,dpkg,cache,log}
