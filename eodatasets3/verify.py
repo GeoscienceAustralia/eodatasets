@@ -7,7 +7,7 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 import boto3
-from setuptools._distutils import spawn
+from shutil import which
 
 _LOG = logging.getLogger(__name__)
 
@@ -35,11 +35,12 @@ def find_exe(name: str):
     :return: the absolute path to the executable.
     :rtype: str
     """
-    executable = spawn.find_executable(name)
-    if not executable:
-        raise Exception(f"No {name!r} command found.")
+    executable = which(name)
 
-    return executable
+    if executable is None:
+        raise Exception(f"No {name!r} command found.")
+    else:
+        return executable
 
 
 def calculate_file_sha1(filename):
