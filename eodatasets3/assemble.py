@@ -1411,6 +1411,10 @@ class DatasetAssembler(DatasetPrepare):
     ):
         _validate_property_name(name)
 
+        # convert any bools to uin8
+        if data.dtype.name == "bool":
+            data = numpy.uint8(data)
+
         _write_cog(
             data,
             geobox=geobox,
