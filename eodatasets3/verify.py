@@ -3,7 +3,6 @@ import hashlib
 import logging
 import os
 import typing
-from distutils import spawn
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -35,11 +34,14 @@ def find_exe(name: str):
     :return: the absolute path to the executable.
     :rtype: str
     """
-    executable = spawn.find_executable(name)
-    if not executable:
-        raise Exception(f"No {name!r} command found.")
+    from shutil import which
 
-    return executable
+    executable = which(name)
+
+    if executable is None:
+        raise Exception(f"No {name!r} command found.")
+    else:
+        return executable
 
 
 def calculate_file_sha1(filename):
