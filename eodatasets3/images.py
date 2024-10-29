@@ -743,7 +743,7 @@ def _write_to_numpy_array(
     if input_geobox is None:
         raise NotImplementedError("generating geobox from numpy is't yet supported")
 
-    out_crs = CRS.from_epsg(4326)
+    out_crs = CRS(4326)
     (
         reprojected_transform,
         reprojected_width,
