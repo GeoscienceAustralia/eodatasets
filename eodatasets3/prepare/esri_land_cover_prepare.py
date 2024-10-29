@@ -2,9 +2,10 @@ import uuid
 from pathlib import Path
 
 import rasterio
+from odc.geo.geobox import GeoBox
 from shapely.geometry import box
 
-from eodatasets3 import DatasetPrepare, GridSpec
+from eodatasets3 import DatasetPrepare
 
 _ESRI_ID_NAMESPACE = uuid.UUID("88a620e0-6b62-462b-9b23-4027e05898f3")
 
@@ -20,13 +21,13 @@ def as_eo3(uri: str):
     path = Path(uri)
 
     with rasterio.open(uri, GEOREF_SOURCES="INTERNAL") as opened_asset:
-        grid_spec = GridSpec.from_rio(opened_asset)
+        geobox = GeoBox.from_rio(opened_asset)
         bbox = opened_asset.bounds
         nodata = opened_asset.nodata
 
     region, date_range = path.stem.split("_")
     start_date, end_date = date_range.split("-")
-    if grid_spec.crs is None:
+    if geobox.crs is None:
         print(f"Empty CRS: {uri}")
         return None
 
@@ -50,7 +51,7 @@ def as_eo3(uri: str):
         "classification",
         uri,
         relative_to_dataset_location=True,
-        grid=grid_spec,
+        geobox=geobox,
         expand_valid_data=False,
         nodata=nodata,
     )

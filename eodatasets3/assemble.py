@@ -20,8 +20,10 @@ from urllib.parse import urlsplit
 import numpy
 import rasterio
 import xarray
+from odc.geo.cog._rio import _write_cog
+from odc.geo.crs import CRS
+from odc.geo.geobox import GeoBox
 from rasterio import DatasetReader
-from rasterio.crs import CRS
 from rasterio.enums import Resampling
 from ruamel.yaml.comments import CommentedMap
 from shapely.geometry.base import BaseGeometry
@@ -29,7 +31,12 @@ from shapely.geometry.base import BaseGeometry
 import eodatasets3
 from eodatasets3 import documents, images, serialise, validate
 from eodatasets3.documents import find_and_read_documents
-from eodatasets3.images import FileWrite, GridSpec, MeasurementBundler, ValidDataMethod
+from eodatasets3.images import (
+    MeasurementBundler,
+    ValidDataMethod,
+    create_thumbnail,
+    create_thumbnail_singleband,
+)
 from eodatasets3.model import AccessoryDoc, DatasetDoc, Location, ProductDoc
 from eodatasets3.names import NamingConventions, dc_uris, namer, resolve_location
 from eodatasets3.properties import Eo3Dict, Eo3Interface
@@ -485,7 +492,7 @@ class DatasetPrepare(Eo3Interface):
         return self._dataset.properties
 
     @property
-    def measurements(self) -> dict[str, tuple[GridSpec, Path]]:
+    def measurements(self) -> dict[str, tuple[GeoBox, Path]]:
         return {
             name: (grid, path) for grid, name, path in self._measurements.iter_paths()
         }
@@ -705,7 +712,7 @@ class DatasetPrepare(Eo3Interface):
         path: Location,
         expand_valid_data=True,
         relative_to_dataset_location=False,
-        grid: GridSpec = None,
+        geobox: GeoBox = None,
         pixels: numpy.ndarray = None,
         nodata: float | int | None = None,
     ):
@@ -717,7 +724,7 @@ class DatasetPrepare(Eo3Interface):
         to specify ``relative_to_dataset_location=True``.
 
         The path will be opened to read geo and pixel information, unless you specify the
-        information yourself (grid, pixels, nodata). (the latter two only needed if
+        information yourself (geobox, pixels, nodata). (the latter two only needed if
         expand_valid_data==True)
 
         :param name: measurement name
@@ -732,15 +739,15 @@ class DatasetPrepare(Eo3Interface):
         if self.geometry:
             expand_valid_data = False
 
-        # If they didn't give us grid information, read it from the input.
-        if not grid:
+        # If they didn't give us geobox information, read it from the input.
+        if not geobox:
             read_location = path
             if relative_to_dataset_location:
                 read_location = self.names.resolve_file(path)
 
             with rasterio.open(read_location) as ds:
                 ds: DatasetReader
-                grid = images.GridSpec.from_rio(ds)
+                geobox = GeoBox.from_rio(ds)
                 nodata = ds.nodata
                 if expand_valid_data:
                     if not pixels:
@@ -752,7 +759,7 @@ class DatasetPrepare(Eo3Interface):
 
         self._measurements.record_image(
             name,
-            grid,
+            geobox,
             path,
             pixels,
             nodata=nodata,
@@ -940,7 +947,7 @@ class DatasetPrepare(Eo3Interface):
         # TODO: We should support more authorities here.
         #       if rasterio>=1.1.7, can use crs.to_authority(), but almost
         #       everyone is currently on 1.1.6
-        return f"epsg:{crs.to_epsg()}" if crs.is_epsg_code else crs.to_wkt()
+        return f"epsg:{crs.epsg}" if crs.epsg else crs.wkt
 
     def note_accessory_file(self, name: str, path: Location):
         """
@@ -981,7 +988,7 @@ class DatasetPrepare(Eo3Interface):
 
     def iter_measurement_paths(
         self,
-    ) -> Generator[tuple[GridSpec, str, Path], None, None]:
+    ) -> Generator[tuple[GeoBox, str, Path], None, None]:
         """
 
         .. warning::
@@ -1228,7 +1235,7 @@ class DatasetAssembler(DatasetPrepare):
         input_path: Location,
         index: int | None = None,
         overviews: Iterable[int] = images.DEFAULT_OVERVIEWS,
-        overview_resampling: Resampling = Resampling.average,
+        overview_resampling: str = "average",
         expand_valid_data: bool = True,
         file_id: str = None,
         path: Path = None,
@@ -1267,7 +1274,7 @@ class DatasetAssembler(DatasetPrepare):
         ds: DatasetReader,
         index: int | None = None,
         overviews=images.DEFAULT_OVERVIEWS,
-        overview_resampling=Resampling.average,
+        overview_resampling="average",
         expand_valid_data=True,
         file_id=None,
         path: Path = None,
@@ -1288,7 +1295,9 @@ class DatasetAssembler(DatasetPrepare):
         self._write_measurement(
             name,
             ds.read(index or 1),
-            images.GridSpec.from_rio(ds),
+            GeoBox(
+                ds.shape, ds.transform, str(ds.crs)
+            ),  # GeoBox.from_rio changes the crs format
             self._work_path
             / (path or self.names.measurement_filename(name, "tif", file_id=file_id)),
             expand_valid_data=expand_valid_data,
@@ -1301,18 +1310,18 @@ class DatasetAssembler(DatasetPrepare):
         self,
         name: str,
         array: numpy.ndarray,
-        grid_spec: GridSpec,
+        geobox: GeoBox,
         nodata: float | int | None = None,
         overviews=images.DEFAULT_OVERVIEWS,
-        overview_resampling=Resampling.average,
+        overview_resampling="average",
         expand_valid_data=True,
         file_id: str = None,
         path: Path = None,
     ):
         """
-        Write a measurement from a numpy array and grid spec.
+        Write a measurement from a numpy array and geobox.
 
-        The most common case is to copy the grid spec from your input dataset,
+        The most common case is to copy the geobox from your input dataset,
         assuming you haven't reprojected.
 
         Example::
@@ -1320,20 +1329,20 @@ class DatasetAssembler(DatasetPrepare):
             p.write_measurement_numpy(
                 "blue",
                 new_array,
-                GridSpec.from_dataset_doc(source_dataset),
+                images.gbox_from_dataset_doc(source_dataset),
                 nodata=-999,
             )
 
         See :func:`write_measurement` for other parameters.
 
         :param array:
-        :param grid_spec:
+        :param geobox:
         :param nodata:
         """
         self._write_measurement(
             name,
             array,
-            grid_spec,
+            geobox,
             self._work_path
             / (path or self.names.measurement_filename(name, "tif", file_id=file_id)),
             expand_valid_data=expand_valid_data,
@@ -1347,7 +1356,7 @@ class DatasetAssembler(DatasetPrepare):
         dataset: xarray.Dataset,
         nodata: float | int | None = None,
         overviews=images.DEFAULT_OVERVIEWS,
-        overview_resampling=Resampling.average,
+        overview_resampling="average",
         expand_valid_data=True,
         file_id=None,
     ):
@@ -1366,7 +1375,6 @@ class DatasetAssembler(DatasetPrepare):
 
         See :meth:`write_measurement` for other parameters.
         """
-        grid_spec = images.GridSpec.from_odc_xarray(dataset)
         for name, dataarray in dataset.data_vars.items():
             name: str
 
@@ -1379,7 +1387,7 @@ class DatasetAssembler(DatasetPrepare):
             self._write_measurement(
                 name,
                 dataarray.data,
-                grid_spec,
+                dataarray.geobox,
                 (
                     self._work_path
                     / self.names.measurement_filename(name, "tif", file_id=file_id)
@@ -1394,38 +1402,31 @@ class DatasetAssembler(DatasetPrepare):
         self,
         name: str,
         data: numpy.ndarray,
-        grid: GridSpec,
+        geobox: GeoBox,
         out_path: Path,
         expand_valid_data: bool,
         nodata: float | int | None,
-        overview_resampling: Resampling,
+        overview_resampling: str,
         overviews: tuple[int, ...],
     ):
         _validate_property_name(name)
 
-        res = FileWrite.from_existing(grid.shape).write_from_ndarray(
+        _write_cog(
             data,
-            out_path,
-            geobox=grid,
+            geobox=geobox,
+            fname=out_path,
             nodata=nodata,
             overview_resampling=overview_resampling,
-            overviews=overviews,
+            overview_levels=overviews,
         )
 
         # Ensure the file_format field is set to what we're writing.
-        file_format = res.file_format.name
         if "odc:file_format" not in self.properties:
-            self.properties["odc:file_format"] = file_format
-
-        if file_format != self.properties["odc:file_format"]:
-            raise RuntimeError(
-                f"Inconsistent file formats between bands. "
-                f"Was {self.properties['odc:file_format']!r}, now {file_format !r}"
-            )
+            self.properties["odc:file_format"] = "GeoTIFF"
 
         self._measurements.record_image(
             name,
-            grid,
+            geobox,
             out_path,
             data,
             nodata=nodata,
@@ -1483,14 +1484,14 @@ class DatasetAssembler(DatasetPrepare):
                 )
             )
         rgbs = [self.measurements[b] for b in (red, green, blue)]
-        unique_grids: list[GridSpec] = list({grid for grid, path in rgbs})
+        unique_grids: list[GeoBox] = list({grid for grid, path in rgbs})
         if len(unique_grids) != 1:
             raise NotImplementedError(
                 "Thumbnails can only currently be created from measurements of the same grid spec."
             )
         grid = unique_grids[0]
 
-        FileWrite().create_thumbnail(
+        create_thumbnail(
             (rgbs[0][1], rgbs[1][1], rgbs[2][1]),
             thumb_path,
             out_scale=scale_factor,
@@ -1550,7 +1551,7 @@ class DatasetAssembler(DatasetPrepare):
                 )
             )
 
-        FileWrite().create_thumbnail_singleband(
+        create_thumbnail_singleband(
             image_path,
             thumb_path,
             bit,

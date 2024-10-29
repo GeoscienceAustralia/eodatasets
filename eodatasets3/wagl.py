@@ -28,17 +28,21 @@ import rasterio
 from affine import Affine
 from boltons.iterutils import PathAccessError, get_path
 from click import secho
+from odc.geo import CRS
+from odc.geo.geobox import GeoBox
 from rasterio import DatasetReader
-from rasterio.crs import CRS
-from rasterio.enums import Resampling
 
-from eodatasets3 import DatasetAssembler, images, serialise, utils
-from eodatasets3.images import GridSpec
+from eodatasets3 import DatasetAssembler, images, serialise
 from eodatasets3.model import DatasetDoc
 from eodatasets3.properties import Eo3Interface
 from eodatasets3.serialise import loads_yaml
 from eodatasets3.ui import bool_style
-from eodatasets3.utils import default_utc, flatten_dict
+from eodatasets3.utils import (
+    default_utc,
+    flatten_dict,
+    get_collection_number,
+    normalise_band_name,
+)
 
 try:
     import h5py
@@ -127,13 +131,13 @@ def _unpack_products(
                 with do(f"Path {pathname!r}"):
                     dataset = h5group[pathname]
                     band_masks = get_quality_masks(dataset, granule)
-                    band_name = utils.normalise_band_name(dataset.attrs["alias"])
+                    band_name = normalise_band_name(dataset.attrs["alias"])
                     write_measurement_h5(
                         p,
                         f"{product}:{band_name}",
                         dataset,
                         band_masks=band_masks,
-                        overview_resampling=Resampling.average,
+                        overview_resampling="average",
                         file_id=_file_id(dataset),
                     )
 
@@ -317,7 +321,7 @@ def write_measurement_h5(
     g: h5py.Dataset,
     band_masks: BandMasks | None = None,
     overviews=images.DEFAULT_OVERVIEWS,
-    overview_resampling=Resampling.nearest,
+    overview_resampling="nearest",
     expand_valid_data=True,
     file_id: str = None,
 ):
@@ -332,9 +336,9 @@ def write_measurement_h5(
     product_name, band_name = full_name.split(":")
     p.write_measurement_numpy(
         array=data,
-        grid_spec=images.GridSpec(
+        geobox=GeoBox(
             shape=g.shape,
-            transform=Affine.from_gdal(*g.attrs["geotransform"]),
+            affine=Affine.from_gdal(*g.attrs["geotransform"]),
             crs=CRS.from_wkt(g.attrs["crs_wkt"]),
         ),
         nodata=g.attrs.get("no_data_value"),
@@ -364,7 +368,7 @@ def _file_id(dataset: h5py.Dataset) -> str:
     band_name = dataset.attrs["band_id"]
 
     # A purely numeric id needs to be formatted 'band01' according to naming conventions.
-    return utils.normalise_band_name(band_name)
+    return normalise_band_name(band_name)
 
 
 def _unpack_observation_attributes(
@@ -383,7 +387,7 @@ def _unpack_observation_attributes(
         for dataset_name in dataset_names:
             o = f"{section}/{dataset_name}"
             with do(f"Path {o!r} "):
-                measurement_name = utils.normalise_band_name(dataset_name)
+                measurement_name = normalise_band_name(dataset_name)
                 write_measurement_h5(
                     p,
                     f"oa:{measurement_name}",
@@ -460,13 +464,13 @@ def _create_contiguity(
             if not band_name.startswith(f"{product.lower()}:"):
                 continue
             # Only our given res group (no pan band in Landsat)
-            if grid.resolution_yx != resolution_yx:
+            if grid.resolution.yx != resolution_yx:
                 continue
             with rasterio.open(path) as ds:
                 ds: DatasetReader
                 out_shape = ds.shape
                 contiguity = numpy.ones(out_shape, dtype="uint8")
-                geobox = GridSpec.from_rio(ds)
+                geobox = GeoBox.from_rio(ds)
                 break
 
         if contiguity is None:
@@ -477,16 +481,13 @@ def _create_contiguity(
                 continue
             # Only our given res group (no pan band in Landsat)
             if (p.platform.startswith("landsat")) and (
-                grid.resolution_yx != resolution_yx
+                grid.resolution.yx != resolution_yx
             ):
                 continue
             with rasterio.open(path) as ds:
                 ds: DatasetReader
                 contiguity &= (
-                    ds.read(
-                        ds.count, out_shape=out_shape, resampling=Resampling.nearest
-                    )
-                    > 0
+                    ds.read(ds.count, out_shape=out_shape, resampling="nearest") > 0
                 )
 
         p.write_measurement_numpy(
@@ -914,7 +915,7 @@ def package(
                 if granule.source_level1_metadata.maturity == "nrt":
                     p.maturity = "nrt"
 
-            org_collection_number = utils.get_collection_number(
+            org_collection_number = get_collection_number(
                 p.platform, p.producer, p.properties.get("landsat:collection_number")
             )
 
@@ -989,7 +990,7 @@ def package(
                                 "oa:fmask",
                                 granule.fmask_image,
                                 expand_valid_data=False,
-                                overview_resampling=Resampling.mode,
+                                overview_resampling="mode",
                                 # Because of our strange sub-products and filename standards, we want the
                                 # 'oa_' prefix to be included in the recorded band metadata,
                                 # but not in its filename.
@@ -1005,7 +1006,7 @@ def package(
                                 "oa:s2cloudless_prob",
                                 granule.s2cloudless_prob,
                                 expand_valid_data=False,
-                                overview_resampling=Resampling.bilinear,
+                                overview_resampling="bilinear",
                                 path=p.names.measurement_filename("s2cloudless-prob"),
                             )
 
@@ -1017,7 +1018,7 @@ def package(
                                 "oa:s2cloudless_mask",
                                 granule.s2cloudless_mask,
                                 expand_valid_data=False,
-                                overview_resampling=Resampling.mode,
+                                overview_resampling="mode",
                                 path=p.names.measurement_filename("s2cloudless-mask"),
                             )
 

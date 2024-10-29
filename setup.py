@@ -89,6 +89,7 @@ setup(
         "datacube>=1.9.0-rc4",
         "python-rapidjson",
         "pystac>=1.8.4",
+        "odc-geo",
     ],
     tests_require=tests_require,
     extras_require=EXTRAS_REQUIRE,

@@ -1,7 +1,7 @@
 from . import _version
 from ._version import get_versions
 from .assemble import DatasetAssembler, DatasetPrepare, IfExists, IncompleteDatasetError
-from .images import GridSpec, ValidDataMethod
+from .images import ValidDataMethod
 from .model import DatasetDoc
 from .names import NamingConventions, namer
 from .properties import Eo3Dict
@@ -16,7 +16,6 @@ __all__ = (
     "DatasetDoc",
     "DatasetPrepare",
     "Eo3Dict",
-    "GridSpec",
     "IfExists",
     "IncompleteDatasetError",
     "NamingConventions",

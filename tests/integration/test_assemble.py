@@ -16,8 +16,9 @@ import pytest
 from ruamel import yaml
 
 from eodatasets3 import DatasetAssembler, DatasetPrepare, namer, serialise
-from eodatasets3.images import GridSpec
+from eodatasets3.images import gbox_from_dataset_doc, gbox_from_path
 from eodatasets3.model import DatasetDoc
+from eodatasets3.utils import default_utc
 from tests import assert_file_structure
 from tests.common import assert_expected_eo3_path, assert_same
 
@@ -26,6 +27,7 @@ def test_dea_style_package(
     l1_ls8_dataset: DatasetDoc, l1_ls8_dataset_path: Path, tmp_path: Path
 ):
     out = tmp_path
+    print(l1_ls8_dataset.properties["datetime"])
 
     [blue_geotiff_path] = l1_ls8_dataset_path.rglob("L*_B2.TIF")
 
@@ -48,7 +50,7 @@ def test_dea_style_package(
         p.write_measurement_numpy(
             "ones",
             numpy.ones((60, 60), numpy.int16),
-            GridSpec.from_dataset_doc(l1_ls8_dataset),
+            gbox_from_dataset_doc(l1_ls8_dataset),
             nodata=-999,
         )
 
@@ -143,11 +145,11 @@ def test_dea_style_package(
                 "ones": {"path": "ga_ls8c_ones_3-0-0_090084_2016-01-21_final_ones.tif"},
             },
             "properties": {
-                "datetime": datetime(2016, 1, 21, 23, 50, 23, 54435),
+                "datetime": default_utc(datetime(2016, 1, 21, 23, 50, 23, 54435)),
                 "dea:dataset_maturity": "final",
                 "odc:dataset_version": "3.0.0",
                 "odc:file_format": "GeoTIFF",
-                "odc:processing_datetime": "2016-03-04T14:23:30",
+                "odc:processing_datetime": "2016-03-04T14:23:30+00:00",
                 "odc:producer": "ga.gov.au",
                 "odc:product_family": "ones",
                 # The remaining fields were inherited from the source dataset
@@ -256,7 +258,7 @@ def test_in_memory_dataset(tmp_path: Path, l1_ls8_folder: Path):
         pretend_path,
         # We give it grid information, so it doesn't have to read it itself.
         # (reading will fail if it tries, because the path is fake!)
-        grid=GridSpec.from_path(blue_geotiff_path),
+        geobox=gbox_from_path(blue_geotiff_path),
         pixels=numpy.ones((60, 60), numpy.int16),
         nodata=-1,
     )
