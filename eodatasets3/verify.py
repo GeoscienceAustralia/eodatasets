@@ -4,10 +4,10 @@ import logging
 import os
 import typing
 from pathlib import Path
+from shutil import which
 from urllib.parse import urlparse
 
 import boto3
-from shutil import which
 
 _LOG = logging.getLogger(__name__)
 
