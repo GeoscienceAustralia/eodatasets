@@ -305,7 +305,7 @@ class MeasurementBundler:
         # Otherwise, try resolution names:
         named_grids = {"default": default_grid}
         for grid, measurements in grids_by_frequency:
-            res_y, res_x = grid.resolution_yx
+            res_y, res_x = grid.resolution.map(abs).yx
             if res_x > 1:
                 res_x = int(res_x)
             grid_name = f"{res_x}"

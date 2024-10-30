@@ -31,6 +31,7 @@ from click import secho
 from odc.geo import CRS
 from odc.geo.geobox import GeoBox
 from rasterio import DatasetReader
+from rasterio.enums import Resampling
 
 from eodatasets3 import DatasetAssembler, images, serialise
 from eodatasets3.model import DatasetDoc
@@ -464,7 +465,7 @@ def _create_contiguity(
             if not band_name.startswith(f"{product.lower()}:"):
                 continue
             # Only our given res group (no pan band in Landsat)
-            if grid.resolution.yx != resolution_yx:
+            if grid.resolution.map(abs).yx != resolution_yx:
                 continue
             with rasterio.open(path) as ds:
                 ds: DatasetReader
@@ -481,13 +482,16 @@ def _create_contiguity(
                 continue
             # Only our given res group (no pan band in Landsat)
             if (p.platform.startswith("landsat")) and (
-                grid.resolution.yx != resolution_yx
+                grid.resolution.map(abs).yx != resolution_yx
             ):
                 continue
             with rasterio.open(path) as ds:
                 ds: DatasetReader
                 contiguity &= (
-                    ds.read(ds.count, out_shape=out_shape, resampling="nearest") > 0
+                    ds.read(
+                        ds.count, out_shape=out_shape, resampling=Resampling.nearest
+                    )
+                    > 0
                 )
 
         p.write_measurement_numpy(
