@@ -238,7 +238,7 @@ class MeasurementBundler:
                     f"Duplicate addition of band called {name!r}. "
                     f"Original at {measurements[name]} and now {path}"
                 )
-
+        grid = GeoBox(grid.shape, grid.affine, grid.crs.to_wkt())
         self._measurements_per_grid[grid][name] = _MeasurementLocation(path, layer)
         if expand_valid_data:
             self._expand_valid_data_mask(grid, img, nodata)
