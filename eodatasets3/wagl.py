@@ -286,9 +286,7 @@ def mask_h5_vector(
             shapes,
             out_shape=data_array.shape,
             fill=0,
-            transform=Affine.from_gdal(
-                *[val.item() for val in dataset.attrs["geotransform"]]
-            ),
+            transform=Affine.from_gdal(*dataset.attrs["geotransform"]),
         )
         return numpy.where(mask_array == 0, data_array, dataset.attrs["no_data_value"])
 
@@ -341,7 +339,7 @@ def write_measurement_h5(
         array=data,
         geobox=GeoBox(
             shape=g.shape,
-            affine=Affine.from_gdal(*[val.item() for val in g.attrs["geotransform"]]),
+            affine=Affine.from_gdal(*g.attrs["geotransform"]),
             crs=CRS(g.attrs["crs_wkt"]).to_wkt(),
         ),
         nodata=g.attrs.get("no_data_value"),
