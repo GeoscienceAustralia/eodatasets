@@ -73,7 +73,7 @@ distributed==2022.10.0
     # via datacube
 exceptiongroup==1.2.0
     # via cattrs
-fiona==1.9.5
+fiona==1.10.0
     # via eodatasets3 (setup.py)
 fsspec==2022.10.0
     # via dask
