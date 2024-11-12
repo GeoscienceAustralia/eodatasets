@@ -232,7 +232,7 @@ xarray==2022.10.0
     #   eodatasets3 (setup.py)
 zict==2.2.0
     # via distributed
-zipp==3.17.0
+zipp==3.19.1
     # via
     #   importlib-metadata
     #   importlib-resources
