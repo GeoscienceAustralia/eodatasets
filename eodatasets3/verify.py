@@ -7,7 +7,6 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 import boto3
-from setuptools._distutils import spawn
 
 _LOG = logging.getLogger(__name__)
 
