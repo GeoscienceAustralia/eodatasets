@@ -35,6 +35,9 @@ jobs:
   test-pypi:
     name: Upload to TestPyPI
     runs-on: ubuntu-latest
+    needs:
+      - integration-tests
+    if: ${{ always() && needs.integration-tests.result == 'success' }}
 
     environment:
       name: testpypi
