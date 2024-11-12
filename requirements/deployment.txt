@@ -77,7 +77,7 @@ fiona==1.9.5
     # via eodatasets3 (setup.py)
 fsspec==2022.10.0
     # via dask
-gdal==3.3.2
+gdal==3.6.3
     # via eodatasets3 (setup.py)
 geoalchemy2==0.12.5
     # via datacube

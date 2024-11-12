@@ -32,7 +32,7 @@ EXTRAS_REQUIRE = {
     # Optional valid-data poly handling methods
     "algorithms": ["scikit-image"],
     # Match the expected environment of our docker image
-    "docker": ["gdal==3.3.2"],
+    "docker": ["gdal==3.6.3"],
 }
 EXTRAS_REQUIRE["all"] = list(chain(EXTRAS_REQUIRE.values()))
 # Tests need all those optionals too.

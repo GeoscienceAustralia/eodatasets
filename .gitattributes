@@ -12,3 +12,4 @@
 *.bin binary
 *.tif binary
 eodatasets/_version.py export-subst
+eodatasets3/_version.py export-subst

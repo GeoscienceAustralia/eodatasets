@@ -1,3 +1,4 @@
+from . import _version
 from ._version import get_versions
 from .assemble import DatasetAssembler, DatasetPrepare, IfExists, IncompleteDatasetError
 from .images import GridSpec, ValidDataMethod
@@ -24,3 +25,5 @@ __all__ = (
     "ValidDataMethod",
     "__version__",
 )
+
+__version__ = _version.get_versions()["version"]
