@@ -12,6 +12,7 @@ __version__ = get_versions()["version"]
 del get_versions
 
 __all__ = (
+    "REPO_URL",
     "DatasetAssembler",
     "DatasetDoc",
     "DatasetPrepare",
@@ -20,10 +21,9 @@ __all__ = (
     "IfExists",
     "IncompleteDatasetError",
     "NamingConventions",
-    "namer",
-    "REPO_URL",
     "ValidDataMethod",
     "__version__",
+    "namer",
 )
 
 __version__ = _version.get_versions()["version"]
