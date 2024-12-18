@@ -238,7 +238,8 @@ class MeasurementBundler:
                     f"Duplicate addition of band called {name!r}. "
                     f"Original at {measurements[name]} and now {path}"
                 )
-        grid = GeoBox(grid.shape, grid.affine, grid.crs.to_wkt())
+        if grid.crs.epsg is not None:
+            grid = GeoBox(grid.shape, grid.affine, grid.crs.epsg)
         self._measurements_per_grid[grid][name] = _MeasurementLocation(path, layer)
         if expand_valid_data:
             self._expand_valid_data_mask(grid, img, nodata)
@@ -358,7 +359,7 @@ class MeasurementBundler:
                     f"\t{grid.crs.to_string()!r}\n"
                 )
 
-            grid_docs[grid_name] = GridDoc(grid.shape.wh, grid.transform)
+            grid_docs[grid_name] = GridDoc(grid.shape.yx, grid.transform)
 
             for measurement_name, measurement_path in measurements.items():
                 # No measurement groups in the doc: we replace with underscores.

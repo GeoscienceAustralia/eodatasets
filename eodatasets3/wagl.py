@@ -340,7 +340,7 @@ def write_measurement_h5(
         geobox=GeoBox(
             shape=g.shape,
             affine=Affine.from_gdal(*g.attrs["geotransform"]),
-            crs=CRS(g.attrs["crs_wkt"]).to_wkt(),
+            crs=CRS(g.attrs["crs_wkt"]),
         ),
         nodata=g.attrs.get("no_data_value"),
         overviews=overviews,
@@ -471,8 +471,7 @@ def _create_contiguity(
                 ds: DatasetReader
                 out_shape = ds.shape
                 contiguity = numpy.ones(out_shape, dtype="uint8")
-                # geobox = GeoBox.from_rio(ds)
-                geobox = GeoBox(ds.shape, ds.transform, CRS(ds.crs).to_wkt())
+                geobox = GeoBox.from_rio(ds)
                 break
 
         if contiguity is None:

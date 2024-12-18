@@ -682,7 +682,7 @@ def test_maturity_calculation():
 @contextmanager
 def expect_no_warnings():
     """Throw an assertion error if any warnings are produced."""
-    with pytest.warns(None) as warning_record:
+    with pytest.warns(Warning) as warning_record:
         yield
 
     # We could tighten this to specific warnings if it proves too noisy, but it's
