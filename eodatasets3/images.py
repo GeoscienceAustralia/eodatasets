@@ -7,9 +7,6 @@ from collections import defaultdict
 from collections.abc import Generator, Iterable, Sequence
 from enum import Enum, auto
 from pathlib import Path, PurePath
-from typing import (
-    ClassVar,
-)
 
 import attr
 import numpy
@@ -18,28 +15,19 @@ import rasterio.features
 import shapely
 import shapely.affinity
 import shapely.ops
-import xarray
-from affine import Affine
+from odc.geo import CRS
+from odc.geo.geobox import GeoBox
 from rasterio import DatasetReader
-from rasterio.coords import BoundingBox
-from rasterio.crs import CRS
 from rasterio.enums import Resampling
 from rasterio.io import DatasetWriter, MemoryFile
-from rasterio.shutil import copy as rio_copy
 from rasterio.warp import calculate_default_transform, reproject
 from scipy.ndimage import binary_fill_holes
 from shapely.geometry import box
 from shapely.geometry.base import CAP_STYLE, JOIN_STYLE, BaseGeometry
 
 from eodatasets3.model import DatasetDoc, GridDoc, MeasurementDoc
-from eodatasets3.properties import FileFormat
 
 DEFAULT_OVERVIEWS = (8, 16, 32)
-
-try:
-    import h5py
-except ImportError:
-    h5py = None
 
 
 class ValidDataMethod(Enum):
@@ -74,89 +62,21 @@ class ValidDataMethod(Enum):
     bounds = auto()
 
 
-@attr.s(auto_attribs=True, slots=True, hash=True, frozen=True)
-class GridSpec:
+def gbox_from_path(path: str) -> GeoBox:
+    """Create from the spec of a (rio-readable) filesystem path or url"""
+    with rasterio.open(path) as rio:
+        return GeoBox.from_rio(rio)
+
+
+def gbox_from_dataset_doc(ds: DatasetDoc, grid="default") -> GeoBox:
     """
-    The grid spec defines the coordinates/transform and size of pixels of a
-    measurment.
+    Create from an existing parsed metadata document
 
-    The easiest way to create one is use the ``GridSpec.from_*()`` class methods, such as
-    ``GridSpec.from_path(my_image_path)``.
-
-    To create one manually:
-
-    >>> from eodatasets3 import GridSpec
-    >>> from affine import Affine
-    >>> from rasterio.crs import CRS
-    >>> g = GridSpec(shape=(7721, 7621),
-    ...              transform=Affine(30.0, 0.0, 241485.0, 0.0, -30.0, -2281485.0),
-    ...              crs=CRS.from_epsg(32656))
-    >>> # Numbers copied from equivalent rio dataset.bounds call.
-    >>> g.bounds
-    BoundingBox(left=241485.0, bottom=-2513115.0, right=470115.0, top=-2281485.0)
-    >>> g.resolution_yx
-    (30.0, 30.0)
+    :param grid: Grid name to read, if not the default.
     """
+    g = ds.grids[grid]
 
-    #:
-    shape: tuple[int, int]
-    #:
-    transform: Affine
-    #:
-    crs: CRS = attr.ib(
-        metadata=dict(doc_exclude=True), default=None, hash=False, eq=False
-    )
-
-    @classmethod
-    def from_dataset_doc(cls, ds: DatasetDoc, grid="default") -> "GridSpec":
-        """
-        Create from an existing parsed metadata document
-
-        :param grid: Grid name to read, if not the default.
-        """
-        g = ds.grids[grid]
-
-        if ds.crs.startswith("epsg:"):
-            crs = CRS.from_epsg(ds.crs[5:])
-        else:
-            crs = CRS.from_wkt(ds.crs)
-
-        return GridSpec(g.shape, g.transform, crs=crs)
-
-    @classmethod
-    def from_rio(cls, dataset: rasterio.DatasetReader) -> "GridSpec":
-        """Create from an open rasterio dataset"""
-        return cls(shape=dataset.shape, transform=dataset.transform, crs=dataset.crs)
-
-    @property
-    def resolution_yx(self):
-        return abs(self.transform[4]), abs(self.transform[0])
-
-    @classmethod
-    def from_odc_xarray(cls, dataset: xarray.Dataset) -> "GridSpec":
-        """Create from an ODC xarray"""
-        shape = {v.shape for v in dataset.data_vars.values()}.pop()
-        return cls(
-            shape=shape,
-            transform=dataset.geobox.transform,
-            crs=CRS.from_wkt(str(dataset.geobox.crs)),
-        )
-
-    @classmethod
-    def from_path(cls, path: str) -> "GridSpec":
-        """Create from the spec of a (rio-readable) filesystem path or url"""
-        with rasterio.open(path) as rio:
-            return GridSpec.from_rio(rio)
-
-    @property
-    def bounds(self):
-        """
-        Get bounding box.
-        """
-        return BoundingBox(
-            *(self.transform * (0, self.shape[0]))
-            + (self.transform * (self.shape[1], 0))
-        )
+    return GeoBox(g.shape, g.transform, crs=ds.crs)
 
 
 def generate_tiles(
@@ -298,14 +218,14 @@ class MeasurementBundler:
     def __init__(self):
         # The measurements grouped by their grid.
         # (value is band_name->Path)
-        self._measurements_per_grid: dict[GridSpec, _Measurements] = defaultdict(dict)
+        self._measurements_per_grid: dict[GeoBox, _Measurements] = defaultdict(dict)
         # Valid data mask per grid, in pixel coordinates.
-        self.mask_by_grid: dict[GridSpec, numpy.ndarray] = {}
+        self.mask_by_grid: dict[GeoBox, numpy.ndarray] = {}
 
     def record_image(
         self,
         name: str,
-        grid: GridSpec,
+        grid: GeoBox,
         path: PurePath | str,
         img: numpy.ndarray,
         layer: str | None = None,
@@ -318,13 +238,14 @@ class MeasurementBundler:
                     f"Duplicate addition of band called {name!r}. "
                     f"Original at {measurements[name]} and now {path}"
                 )
-
+        if grid.crs and grid.crs.epsg is not None:
+            grid = GeoBox(grid.shape, grid.affine, grid.crs.epsg)
         self._measurements_per_grid[grid][name] = _MeasurementLocation(path, layer)
         if expand_valid_data:
             self._expand_valid_data_mask(grid, img, nodata)
 
     def _expand_valid_data_mask(
-        self, grid: GridSpec, img: numpy.ndarray, nodata: float | int
+        self, grid: GeoBox, img: numpy.ndarray, nodata: float | int
     ):
         if nodata is None:
             nodata = float("nan") if numpy.issubdtype(img.dtype, numpy.floating) else 0
@@ -341,13 +262,13 @@ class MeasurementBundler:
             mask |= valid_values
         self.mask_by_grid[grid] = mask
 
-    def _as_named_grids(self) -> dict[str, tuple[GridSpec, _Measurements]]:
+    def _as_named_grids(self) -> dict[str, tuple[GeoBox, _Measurements]]:
         """Get our grids with sensible (hopefully!), names."""
 
         # Order grids from most to fewest measurements.
         # PyCharm's typing seems to get confused by the sorted() call.
         # noinspection PyTypeChecker
-        grids_by_frequency: list[tuple[GridSpec, _Measurements]] = sorted(
+        grids_by_frequency: list[tuple[GeoBox, _Measurements]] = sorted(
             self._measurements_per_grid.items(), key=lambda k: len(k[1]), reverse=True
         )
 
@@ -385,7 +306,7 @@ class MeasurementBundler:
         # Otherwise, try resolution names:
         named_grids = {"default": default_grid}
         for grid, measurements in grids_by_frequency:
-            res_y, res_x = grid.resolution_yx
+            res_y, res_x = grid.resolution.map(abs).yx
             if res_x > 1:
                 res_x = int(res_x)
             grid_name = f"{res_x}"
@@ -438,7 +359,7 @@ class MeasurementBundler:
                     f"\t{grid.crs.to_string()!r}\n"
                 )
 
-            grid_docs[grid_name] = GridDoc(grid.shape, grid.transform)
+            grid_docs[grid_name] = GridDoc(grid.shape.yx, grid.transform)
 
             for measurement_name, measurement_path in measurements.items():
                 # No measurement groups in the doc: we replace with underscores.
@@ -468,7 +389,7 @@ class MeasurementBundler:
             grid, mask = self.mask_by_grid.popitem()
 
             if valid_data_method is ValidDataMethod.bounds:
-                geom = box(*grid.bounds)
+                geom = box(*grid.boundingbox)
             elif valid_data_method is ValidDataMethod.filled:
                 mask = mask.astype("uint8")
                 binary_fill_holes(mask, output=mask)
@@ -495,7 +416,7 @@ class MeasurementBundler:
             for band_name, _ in measurements.items():
                 yield band_name
 
-    def iter_paths(self) -> Generator[tuple[GridSpec, str, Path], None, None]:
+    def iter_paths(self) -> Generator[tuple[GeoBox, str, Path], None, None]:
         """All current measurement paths on disk"""
         for grid, measurements in self._measurements_per_grid.items():
             for band_name, meas_path in measurements.items():
@@ -508,7 +429,7 @@ def _valid_shape(shape: BaseGeometry) -> BaseGeometry:
     return shape.buffer(0)
 
 
-def _grid_to_poly(grid: GridSpec, mask: numpy.ndarray) -> BaseGeometry:
+def _grid_to_poly(grid: GeoBox, mask: numpy.ndarray) -> BaseGeometry:
     shape = shapely.ops.unary_union(
         [
             _valid_shape(shapely.geometry.shape(shape))
@@ -530,529 +451,283 @@ def _grid_to_poly(grid: GridSpec, mask: numpy.ndarray) -> BaseGeometry:
     geom = shapely.affinity.affine_transform(
         geom,
         (
-            grid.transform.a,
-            grid.transform.b,
-            grid.transform.d,
-            grid.transform.e,
-            grid.transform.xoff,
-            grid.transform.yoff,
+            grid.affine.a,
+            grid.affine.b,
+            grid.affine.d,
+            grid.affine.e,
+            grid.affine.xoff,
+            grid.affine.yoff,
         ),
     )
     return geom
 
 
-@attr.s(auto_attribs=True)
-class WriteResult:
-    # path: Path
-
-    # The value to put in 'odc:file_format' metadata field.
-    file_format: FileFormat
-
-    # size_bytes: int
-
-
-class FileWrite:
+def create_thumbnail(
+    rgb: tuple[Path, Path, Path],
+    out: Path,
+    out_scale=10,
+    resampling=Resampling.average,
+    static_stretch: tuple[int, int] = None,
+    percentile_stretch: tuple[int, int] = (2, 98),
+    compress_quality: int = 85,
+    input_geobox: GeoBox = None,
+):
     """
-    Write COGs from arrays / files.
+    Generate a thumbnail jpg image using the given three paths as red,green, blue.
 
-    This code is derived from the old eugl packaging code and can probably be improved.
+    A linear stretch is performed on the colour. By default this is a dynamic 2% stretch
+    (the 2% and 98% percentile values of the input). The static_stretch parameter will
+    override this with a static range of values.
+
+    If the input image has a valid no data value, the no data will
+    be set to 0 in the output image.
+
+    Any non-contiguous data across the colour domain, will be set to
+    zero.
     """
+    # No aux.xml file with our jpeg.
+    with rasterio.Env(GDAL_PAM_ENABLED=False):
+        with tempfile.TemporaryDirectory(dir=out.parent, prefix=".thumbgen-") as tmpdir:
+            tmp_quicklook_path = Path(tmpdir) / "quicklook.tif"
 
-    PREDICTOR_DEFAULTS: ClassVar[dict[str, int]] = {
-        "int8": 2,
-        "uint8": 2,
-        "int16": 2,
-        "uint16": 2,
-        "int32": 2,
-        "uint32": 2,
-        "int64": 2,
-        "uint64": 2,
-        "float32": 3,
-        "float64": 3,
-    }
-
-    def __init__(
-        self,
-        gdal_options: dict = None,
-        overview_blocksize: int | None = None,
-    ) -> None:
-        super().__init__()
-        self.options = gdal_options or {}
-        self.overview_blocksize = overview_blocksize
-
-    @classmethod
-    def from_existing(
-        cls,
-        shape: tuple[int, int],
-        overviews: bool = True,
-        blocksize_yx: tuple[int, int] | None = None,
-        overview_blocksize: int | None = None,
-        compress="deflate",
-        zlevel=4,
-    ) -> "FileWrite":
-        """Returns write_img options according to the source imagery provided
-        :param overviews:
-            (boolean) sets overview flags in gdal config options
-        :param blockxsize:
-            (int) override the derived base blockxsize in cogtif conversion
-        :param blockysize:
-            (int) override the derived base blockysize in cogtif conversion
-
-        """
-        options = {"compress": compress, "zlevel": zlevel}
-
-        y_size, x_size = blocksize_yx or (512, 512)
-        # Do not set block sizes for small imagery
-        if shape[0] < y_size and shape[1] < x_size:
-            pass
-        else:
-            options["blockxsize"] = x_size
-            options["blockysize"] = y_size
-            options["tiled"] = "yes"
-
-        if overviews:
-            options["copy_src_overviews"] = "yes"
-
-        return FileWrite(options, overview_blocksize=overview_blocksize)
-
-    def write_from_ndarray(
-        self,
-        array: numpy.ndarray,
-        out_filename: Path,
-        geobox: GridSpec = None,
-        nodata: int = None,
-        overview_resampling=Resampling.nearest,
-        overviews: tuple[int, ...] | None = DEFAULT_OVERVIEWS,
-    ) -> WriteResult:
-        """
-        Writes a 2D/3D image to disk using rasterio.
-
-        :param array:
-            A 2D/3D NumPy array.
-
-        :param out_filename:
-            A string containing the output file name.
-
-        :param geobox:
-            An instance of a GriddedGeoBox object.
-
-        :param nodata:
-            A value representing the no data value for the array.
-
-        :param overview_resampling:
-            If levels is set, build overviews using a resampling method
-            from `rasterio.enums.Resampling`
-            Default is `Resampling.nearest`.
-
-        :notes:
-            If array is an instance of a `h5py.Dataset`, then the output
-            file will include blocksizes based on the `h5py.Dataset's`
-            chunks. To override the blocksizes, specify them using the
-            `options` keyword. Eg {'blockxsize': 512, 'blockysize': 512}.
-        """
-        if out_filename.exists():
-            # Sanity check. Our measurements should have different names...
-            raise RuntimeError(
-                f"measurement output file already exists? {out_filename}"
+            # We write an intensity-scaled, reprojected version of the dataset at full res.
+            # Then write a scaled JPEG verison. (TODO: can we do it in one step?)
+            ql_grid = _write_quicklook(
+                rgb,
+                tmp_quicklook_path,
+                resampling,
+                static_range=static_stretch,
+                percentile_range=percentile_stretch,
+                input_geobox=input_geobox,
             )
+            out_crs = ql_grid.crs
 
-        # TODO: Old packager never passed in tags. Perhaps we want some?
-        tags = {}
-
-        dtype = array.dtype.name
-
-        # Check for excluded datatypes
-        excluded_dtypes = ["int64", "int8", "uint64"]
-        if dtype in excluded_dtypes:
-            raise TypeError(f"Datatype not supported: {dtype}")
-
-        # convert any bools to uin8
-        if dtype == "bool":
-            array = numpy.uint8(array)
-            dtype = "uint8"
-
-        ndims = array.ndim
-        shape = array.shape
-
-        # Get the (z, y, x) dimensions (assuming BSQ interleave)
-        if ndims == 2:
-            samples = shape[1]
-            lines = shape[0]
-            bands = 1
-        elif ndims == 3:
-            samples = shape[2]
-            lines = shape[1]
-            bands = shape[0]
-        else:
-            raise IndexError(f"Input array is not of 2 or 3 dimensions. Got {ndims}")
-
-        transform = None
-        projection = None
-        if geobox is not None:
-            transform = geobox.transform
-            projection = geobox.crs
-
-        rio_args = {
-            "count": bands,
-            "width": samples,
-            "height": lines,
-            "crs": projection,
-            "transform": transform,
-            "dtype": dtype,
-            "driver": "GTiff",
-            "predictor": self.PREDICTOR_DEFAULTS[dtype],
-        }
-        if nodata is not None:
-            rio_args["nodata"] = nodata
-
-        if h5py is not None and isinstance(array, h5py.Dataset):
-            # TODO: if array is 3D get x & y chunks
-            if array.chunks[1] == array.shape[1]:
-                # GDAL doesn't like tiled or blocksize options to be set
-                # the same length as the columns (probably true for rows as well)
-                array = array[:]
-            else:
-                y_tile, x_tile = array.chunks
-                tiles = generate_tiles(samples, lines, x_tile, y_tile)
-
-                if "tiled" in self.options:
-                    rio_args["blockxsize"] = self.options.get("blockxsize", x_tile)
-                    rio_args["blockysize"] = self.options.get("blockysize", y_tile)
-
-        # the user can override any derived blocksizes by supplying `options`
-        # handle case where no options are provided
-        for key in self.options:
-            rio_args[key] = self.options[key]
-
-        # Write to temp directory first so we can add levels afterwards with gdal.
-        with tempfile.TemporaryDirectory(
-            dir=out_filename.parent, prefix=".band_write"
-        ) as tmpdir:
-            unstructured_image = Path(tmpdir) / out_filename.name
-            """
-            This is a wrapper around rasterio writing tiles to
-            enable writing to a temporary location before rearranging
-            the overviews within the file by gdal when required
-            """
-            with rasterio.open(unstructured_image, "w", **rio_args) as outds:
-                if bands == 1:
-                    if h5py is not None and isinstance(array, h5py.Dataset):
-                        for tile in tiles:
-                            idx = (
-                                slice(tile[0][0], tile[0][1]),
-                                slice(tile[1][0], tile[1][1]),
-                            )
-                            outds.write(array[idx], 1, window=tile)
-                    else:
-                        outds.write(array, 1)
-                else:
-                    if h5py is not None and isinstance(array, h5py.Dataset):
-                        for tile in tiles:
-                            idx = (
-                                slice(tile[0][0], tile[0][1]),
-                                slice(tile[1][0], tile[1][1]),
-                            )
-                            subs = array[:, idx[0], idx[1]]
-                            for i in range(bands):
-                                outds.write(subs[i], i + 1, window=tile)
-                    else:
-                        for i in range(bands):
-                            outds.write(array[i], i + 1)
-                if tags is not None:
-                    outds.update_tags(**tags)
-
-                # overviews/pyramids to disk
-                if overviews:
-                    outds.build_overviews(overviews, overview_resampling)
-
-            if overviews:
-                # Move the overviews to the start of the file, as required to be COG-compliant.
-                with rasterio.Env(
-                    GDAL_TIFF_OVR_BLOCKSIZE=self.overview_blocksize or 512
-                ):
-                    rio_copy(
-                        unstructured_image,
-                        out_filename,
-                        **{"copy_src_overviews": True, **rio_args},
-                    )
-            else:
-                unstructured_image.rename(out_filename)
-
-        return WriteResult(file_format=FileFormat.GeoTIFF)
-
-    def create_thumbnail(
-        self,
-        rgb: tuple[Path, Path, Path],
-        out: Path,
-        out_scale=10,
-        resampling=Resampling.average,
-        static_stretch: tuple[int, int] = None,
-        percentile_stretch: tuple[int, int] = (2, 98),
-        compress_quality: int = 85,
-        input_geobox: GridSpec = None,
-    ):
-        """
-        Generate a thumbnail jpg image using the given three paths as red,green, blue.
-
-        A linear stretch is performed on the colour. By default this is a dynamic 2% stretch
-        (the 2% and 98% percentile values of the input). The static_stretch parameter will
-        override this with a static range of values.
-
-        If the input image has a valid no data value, the no data will
-        be set to 0 in the output image.
-
-        Any non-contiguous data across the colour domain, will be set to
-        zero.
-        """
-        # No aux.xml file with our jpeg.
-        with rasterio.Env(GDAL_PAM_ENABLED=False):
-            with tempfile.TemporaryDirectory(
-                dir=out.parent, prefix=".thumbgen-"
-            ) as tmpdir:
-                tmp_quicklook_path = Path(tmpdir) / "quicklook.tif"
-
-                # We write an intensity-scaled, reprojected version of the dataset at full res.
-                # Then write a scaled JPEG verison. (TODO: can we do it in one step?)
-                ql_grid = _write_quicklook(
-                    rgb,
-                    tmp_quicklook_path,
-                    resampling,
-                    static_range=static_stretch,
-                    percentile_range=percentile_stretch,
-                    input_geobox=input_geobox,
-                )
-                out_crs = ql_grid.crs
-
-                # Scale and write as JPEG to the output.
-                (
-                    thumb_transform,
-                    thumb_width,
-                    thumb_height,
-                ) = calculate_default_transform(
-                    out_crs,
-                    out_crs,
-                    ql_grid.shape[1],
-                    ql_grid.shape[0],
-                    *ql_grid.bounds,
-                    dst_width=ql_grid.shape[1] // out_scale,
-                    dst_height=ql_grid.shape[0] // out_scale,
-                )
-                thumb_args = dict(
-                    driver="JPEG",
-                    quality=compress_quality,
-                    height=thumb_height,
-                    width=thumb_width,
-                    count=3,
-                    dtype="uint8",
-                    nodata=0,
-                    transform=thumb_transform,
-                    crs=out_crs,
-                )
-                with rasterio.open(tmp_quicklook_path, "r") as ql_ds:
-                    ql_ds: DatasetReader
-                    with rasterio.open(out, "w", **thumb_args) as thumb_ds:
-                        thumb_ds: DatasetWriter
-                        for index in thumb_ds.indexes:
-                            thumb_ds.write(
-                                ql_ds.read(
-                                    index,
-                                    out_shape=(thumb_height, thumb_width),
-                                    resampling=resampling,
-                                ),
+            # Scale and write as JPEG to the output.
+            (
+                thumb_transform,
+                thumb_width,
+                thumb_height,
+            ) = calculate_default_transform(
+                out_crs,
+                out_crs,
+                ql_grid.shape[1],
+                ql_grid.shape[0],
+                *ql_grid.boundingbox,
+                dst_width=ql_grid.shape[1] // out_scale,
+                dst_height=ql_grid.shape[0] // out_scale,
+            )
+            thumb_args = dict(
+                driver="JPEG",
+                quality=compress_quality,
+                height=thumb_height,
+                width=thumb_width,
+                count=3,
+                dtype="uint8",
+                nodata=0,
+                transform=thumb_transform,
+                crs=out_crs,
+            )
+            with rasterio.open(tmp_quicklook_path, "r") as ql_ds:
+                ql_ds: DatasetReader
+                with rasterio.open(out, "w", **thumb_args) as thumb_ds:
+                    thumb_ds: DatasetWriter
+                    for index in thumb_ds.indexes:
+                        thumb_ds.write(
+                            ql_ds.read(
                                 index,
-                            )
+                                out_shape=(thumb_height, thumb_width),
+                                resampling=resampling,
+                            ),
+                            index,
+                        )
 
-    def create_thumbnail_from_numpy(
-        self,
-        rgb: tuple[numpy.array, numpy.array, numpy.array],
-        out_scale=10,
-        resampling=Resampling.average,
-        static_stretch: tuple[int, int] = None,
-        percentile_stretch: tuple[int, int] = (2, 98),
-        compress_quality: int = 85,
-        input_geobox: GridSpec = None,
-        nodata: int = -999,
-    ):
-        """
-        Generate a thumbnail as numpy arrays.
 
-        Unlike the default `create_thumbnail` function, this is done entirely in-memory. It will likely require more
-        memory but does not touch the filesystem.
+def create_thumbnail_from_numpy(
+    rgb: tuple[numpy.array, numpy.array, numpy.array],
+    out_scale=10,
+    resampling=Resampling.average,
+    static_stretch: tuple[int, int] = None,
+    percentile_stretch: tuple[int, int] = (2, 98),
+    compress_quality: int = 85,
+    input_geobox: GeoBox = None,
+    nodata: int = -999,
+):
+    """
+    Generate a thumbnail as numpy arrays.
 
-        A linear stretch is performed on the colour. By default this is a dynamic 2% stretch
-        (the 2% and 98% percentile values of the input). The static_stretch parameter will
-        override this with a static range of values.
+    Unlike the default `create_thumbnail` function, this is done entirely in-memory. It will likely require more
+    memory but does not touch the filesystem.
 
-        Any non-contiguous data across the colour domain, will be set to zero.
-        """
-        ql_grid, numpy_array_list, ql_write_args = _write_to_numpy_array(
-            rgb,
-            resampling,
-            static_range=static_stretch,
-            percentile_range=percentile_stretch,
-            input_geobox=input_geobox,
-            nodata=nodata,
-        )
-        out_crs = ql_grid.crs
+    A linear stretch is performed on the colour. By default this is a dynamic 2% stretch
+    (the 2% and 98% percentile values of the input). The static_stretch parameter will
+    override this with a static range of values.
 
-        # Scale and write as JPEG to the output.
-        (
-            thumb_transform,
-            thumb_width,
-            thumb_height,
-        ) = calculate_default_transform(
-            out_crs,
-            out_crs,
-            ql_grid.shape[1],
-            ql_grid.shape[0],
-            *ql_grid.bounds,
-            dst_width=ql_grid.shape[1] // out_scale,
-            dst_height=ql_grid.shape[0] // out_scale,
-        )
-        thumb_args = dict(
-            driver="JPEG",
-            quality=compress_quality,
-            height=thumb_height,
-            width=thumb_width,
-            count=3,
-            dtype="uint8",
-            nodata=0,
-            transform=thumb_transform,
-            crs=out_crs,
-        )
+    Any non-contiguous data across the colour domain, will be set to zero.
+    """
+    ql_grid, numpy_array_list, ql_write_args = _write_to_numpy_array(
+        rgb,
+        resampling,
+        static_range=static_stretch,
+        percentile_range=percentile_stretch,
+        input_geobox=input_geobox,
+        nodata=nodata,
+    )
+    out_crs = ql_grid.crs
 
-        with MemoryFile() as mem_tif_file:
-            with mem_tif_file.open(**ql_write_args) as dataset:
-                for i, data in enumerate(numpy_array_list):
-                    dataset.write(data, i + 1)
+    # Scale and write as JPEG to the output.
+    (
+        thumb_transform,
+        thumb_width,
+        thumb_height,
+    ) = calculate_default_transform(
+        out_crs,
+        out_crs,
+        ql_grid.shape[1],
+        ql_grid.shape[0],
+        *ql_grid.boundingbox,
+        dst_width=ql_grid.shape[1] // out_scale,
+        dst_height=ql_grid.shape[0] // out_scale,
+    )
+    thumb_args = dict(
+        driver="JPEG",
+        quality=compress_quality,
+        height=thumb_height,
+        width=thumb_width,
+        count=3,
+        dtype="uint8",
+        nodata=0,
+        transform=thumb_transform,
+        crs=out_crs,
+    )
 
-                with MemoryFile() as mem_jpg_file:
-                    with mem_jpg_file.open(**thumb_args) as thumbnail:
-                        for index in thumbnail.indexes:
-                            thumbnail.write(  # write the data from temp_tif to temp_jpg
-                                dataset.read(
-                                    index,
-                                    out_shape=(thumb_height, thumb_width),
-                                    resampling=Resampling.average,
-                                ),
+    with MemoryFile() as mem_tif_file:
+        with mem_tif_file.open(**ql_write_args) as dataset:
+            for i, data in enumerate(numpy_array_list):
+                dataset.write(data, i + 1)
+
+            with MemoryFile() as mem_jpg_file:
+                with mem_jpg_file.open(**thumb_args) as thumbnail:
+                    for index in thumbnail.indexes:
+                        thumbnail.write(  # write the data from temp_tif to temp_jpg
+                            dataset.read(
                                 index,
-                            )
+                                out_shape=(thumb_height, thumb_width),
+                                resampling=Resampling.average,
+                            ),
+                            index,
+                        )
 
-                    return_bytes = mem_jpg_file.read()
+                return_bytes = mem_jpg_file.read()
 
-        return return_bytes
+    return return_bytes
 
-    def create_thumbnail_singleband(
-        self,
-        in_file: Path,
-        out_file: Path,
-        bit: int = None,
-        lookup_table: dict[int, tuple[int, int, int]] = None,
-    ):
-        """
-        Write out a JPG thumbnail from a singleband image.
-        This takes in a path to a valid raster dataset and writes
-        out a file with only the values of the bit (integer) as white
-        """
-        if bit is not None and lookup_table is not None:
-            raise ValueError(
-                "Please set either bit or lookup_table, and not both of them"
-            )
-        if bit is None and lookup_table is None:
-            raise ValueError(
-                "Please set either bit or lookup_table, you haven't set either of them"
-            )
 
-        with rasterio.open(in_file) as dataset:
-            data = dataset.read()
-            out_data, stretch = self._filter_singleband_data(data, bit, lookup_table)
+def create_thumbnail_singleband(
+    in_file: Path,
+    out_file: Path,
+    bit: int = None,
+    lookup_table: dict[int, tuple[int, int, int]] = None,
+):
+    """
+    Write out a JPG thumbnail from a singleband image.
+    This takes in a path to a valid raster dataset and writes
+    out a file with only the values of the bit (integer) as white
+    """
+    if bit is not None and lookup_table is not None:
+        raise ValueError("Please set either bit or lookup_table, and not both of them")
+    if bit is None and lookup_table is None:
+        raise ValueError(
+            "Please set either bit or lookup_table, you haven't set either of them"
+        )
 
-        meta = dataset.meta
-        meta["driver"] = "GTiff"
+    with rasterio.open(in_file) as dataset:
+        data = dataset.read()
+        out_data, stretch = _filter_singleband_data(data, bit, lookup_table)
 
-        with tempfile.TemporaryDirectory() as temp_dir:
-            if bit:
-                # Only use one file, three times
-                temp_file = Path(temp_dir) / "temp.tif"
+    meta = dataset.meta
+    meta["driver"] = "GTiff"
 
-                with rasterio.open(temp_file, "w", **meta) as tmpdataset:
-                    tmpdataset.write(out_data)
-                self.create_thumbnail(
-                    (temp_file, temp_file, temp_file),
-                    out_file,
-                    static_stretch=stretch,
-                )
-            else:
-                # Use three different files
-                temp_files = tuple(Path(temp_dir) / f"temp_{i}.tif" for i in range(3))
-
-                for i in range(3):
-                    with rasterio.open(temp_files[i], "w", **meta) as tmpdataset:
-                        tmpdataset.write(out_data[i])
-                self.create_thumbnail(temp_files, out_file, static_stretch=stretch)
-
-    def create_thumbnail_singleband_from_numpy(
-        self,
-        input_data: numpy.array,
-        bit: int = None,
-        lookup_table: dict[int, tuple[int, int, int]] = None,
-        input_geobox: GridSpec = None,
-        nodata: int = -999,
-    ) -> bytes:
-        """
-        Output a thumbnail ready bytes from the input numpy array.
-        This takes a valid raster data (numpy arrary) and return
-        out bytes with only the values of the bit (integer) as white.
-        """
-        if bit is not None and lookup_table is not None:
-            raise ValueError(
-                "Please set either bit or lookup_table, and not both of them"
-            )
-        if bit is None and lookup_table is None:
-            raise ValueError(
-                "Please set either bit or lookup_table, you haven't set either of them"
-            )
-
-        out_data, stretch = self._filter_singleband_data(input_data, bit, lookup_table)
-
+    with tempfile.TemporaryDirectory() as temp_dir:
         if bit:
-            rgb = [out_data, out_data, out_data]
-        else:
-            rgb = out_data
+            # Only use one file, three times
+            temp_file = Path(temp_dir) / "temp.tif"
 
-        return self.create_thumbnail_from_numpy(
-            rgb=rgb,
-            static_stretch=stretch,
-            input_geobox=input_geobox,
-            nodata=nodata,
+            with rasterio.open(temp_file, "w", **meta) as tmpdataset:
+                tmpdataset.write(out_data)
+            create_thumbnail(
+                (temp_file, temp_file, temp_file),
+                out_file,
+                static_stretch=stretch,
+            )
+        else:
+            # Use three different files
+            temp_files = tuple(Path(temp_dir) / f"temp_{i}.tif" for i in range(3))
+
+            for i in range(3):
+                with rasterio.open(temp_files[i], "w", **meta) as tmpdataset:
+                    tmpdataset.write(out_data[i])
+            create_thumbnail(temp_files, out_file, static_stretch=stretch)
+
+
+def create_thumbnail_singleband_from_numpy(
+    input_data: numpy.array,
+    bit: int = None,
+    lookup_table: dict[int, tuple[int, int, int]] = None,
+    input_geobox: GeoBox = None,
+    nodata: int = -999,
+) -> bytes:
+    """
+    Output a thumbnail ready bytes from the input numpy array.
+    This takes a valid raster data (numpy arrary) and return
+    out bytes with only the values of the bit (integer) as white.
+    """
+    if bit is not None and lookup_table is not None:
+        raise ValueError("Please set either bit or lookup_table, and not both of them")
+    if bit is None and lookup_table is None:
+        raise ValueError(
+            "Please set either bit or lookup_table, you haven't set either of them"
         )
 
-    def _filter_singleband_data(
-        self,
-        data: numpy.array,
-        bit: int = None,
-        lookup_table: dict[int, tuple[int, int, int]] = None,
-    ):
-        """
-        Apply bit or lookup_table to filter the numpy array
-        and generate the thumbnail content.
-        """
-        if bit is not None:
-            out_data = numpy.copy(data)
-            out_data[data != bit] = 0
-            stretch = (0, bit)
-        if lookup_table is not None:
-            out_data = [
-                numpy.full_like(data, 0),
-                numpy.full_like(data, 0),
-                numpy.full_like(data, 0),
-            ]
-            stretch = (0, 255)
+    out_data, stretch = _filter_singleband_data(input_data, bit, lookup_table)
 
-            for value, rgb in lookup_table.items():
-                for index in range(3):
-                    out_data[index][data == value] = rgb[index]
-        return out_data, stretch
+    if bit:
+        rgb = [out_data, out_data, out_data]
+    else:
+        rgb = out_data
+
+    return create_thumbnail_from_numpy(
+        rgb=rgb,
+        static_stretch=stretch,
+        input_geobox=input_geobox,
+        nodata=nodata,
+    )
+
+
+def _filter_singleband_data(
+    data: numpy.array,
+    bit: int = None,
+    lookup_table: dict[int, tuple[int, int, int]] = None,
+):
+    """
+    Apply bit or lookup_table to filter the numpy array
+    and generate the thumbnail content.
+    """
+    if bit is not None:
+        out_data = numpy.copy(data)
+        out_data[data != bit] = 0
+        stretch = (0, bit)
+    if lookup_table is not None:
+        out_data = [
+            numpy.full_like(data, 0),
+            numpy.full_like(data, 0),
+            numpy.full_like(data, 0),
+        ]
+        stretch = (0, 255)
+
+        for value, rgb in lookup_table.items():
+            for index in range(3):
+                out_data[index][data == value] = rgb[index]
+    return out_data, stretch
 
 
 def _write_to_numpy_array(
@@ -1060,16 +735,16 @@ def _write_to_numpy_array(
     resampling: Resampling,
     static_range: tuple[int, int],
     percentile_range: tuple[int, int] = (2, 98),
-    input_geobox: GridSpec = None,
+    input_geobox: GeoBox = None,
     nodata: int = -999,
-) -> GridSpec:
+) -> GeoBox:
     """
     Write an intensity-scaled wgs84 image using the given files as bands.
     """
     if input_geobox is None:
         raise NotImplementedError("generating geobox from numpy is't yet supported")
 
-    out_crs = CRS.from_epsg(4326)
+    out_crs = CRS(4326)
     (
         reprojected_transform,
         reprojected_width,
@@ -1079,9 +754,9 @@ def _write_to_numpy_array(
         out_crs,
         input_geobox.shape[1],
         input_geobox.shape[0],
-        *input_geobox.bounds,
+        *input_geobox.boundingbox,
     )
-    reproj_grid = GridSpec(
+    reproj_grid = GeoBox(
         (reprojected_height, reprojected_width), reprojected_transform, crs=out_crs
     )
     ql_write_args = dict(
@@ -1090,7 +765,7 @@ def _write_to_numpy_array(
         count=len(rgb),
         width=reproj_grid.shape[1],
         height=reproj_grid.shape[0],
-        transform=reproj_grid.transform,
+        transform=reproj_grid.affine,
         crs=reproj_grid.crs,
         nodata=0,
         tiled="yes",
@@ -1124,11 +799,11 @@ def _write_to_numpy_array(
             ),
             reprojected_data,
             src_crs=input_geobox.crs,
-            src_transform=input_geobox.transform,
+            src_transform=input_geobox.affine,
             src_nodata=0,
             dst_crs=reproj_grid.crs,
             dst_nodata=0,
-            dst_transform=reproj_grid.transform,
+            dst_transform=reproj_grid.affine,
             resampling=resampling,
             num_threads=2,
         )
@@ -1144,16 +819,16 @@ def _write_quicklook(
     resampling: Resampling,
     static_range: tuple[int, int],
     percentile_range: tuple[int, int] = (2, 98),
-    input_geobox: GridSpec = None,
-) -> GridSpec:
+    input_geobox: GeoBox = None,
+) -> GeoBox:
     """
     Write an intensity-scaled wgs84 image using the given files as bands.
     """
     if input_geobox is None:
         with rasterio.open(rgb[0]) as ds:
-            input_geobox = GridSpec.from_rio(ds)
+            input_geobox = GeoBox.from_rio(ds)
 
-    out_crs = CRS.from_epsg(4326)
+    out_crs = CRS(4326)
     (
         reprojected_transform,
         reprojected_width,
@@ -1163,9 +838,9 @@ def _write_quicklook(
         out_crs,
         input_geobox.shape[1],
         input_geobox.shape[0],
-        *input_geobox.bounds,
+        *input_geobox.boundingbox,
     )
-    reproj_grid = GridSpec(
+    reproj_grid = GeoBox(
         (reprojected_height, reprojected_width), reprojected_transform, crs=out_crs
     )
     ql_write_args = dict(
@@ -1174,7 +849,7 @@ def _write_quicklook(
         count=len(rgb),
         width=reproj_grid.shape[1],
         height=reproj_grid.shape[0],
-        transform=reproj_grid.transform,
+        transform=reproj_grid.affine,
         crs=reproj_grid.crs,
         nodata=0,
         tiled="yes",
@@ -1207,11 +882,11 @@ def _write_quicklook(
                 ),
                 reprojected_data,
                 src_crs=input_geobox.crs,
-                src_transform=input_geobox.transform,
+                src_transform=input_geobox.affine,
                 src_nodata=0,
                 dst_crs=reproj_grid.crs,
                 dst_nodata=0,
-                dst_transform=reproj_grid.transform,
+                dst_transform=reproj_grid.affine,
                 resampling=resampling,
                 num_threads=2,
             )

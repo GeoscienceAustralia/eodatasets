@@ -13,7 +13,7 @@ README = (HERE / "README.md").read_text(encoding="utf-8")
 
 
 tests_require = [
-    "deepdiff",
+    "deepdiff>=8.0.0",
     "gdal",
     "mock",
     "pep8-naming",
@@ -78,7 +78,7 @@ setup(
         "fiona",
         "h5py",
         "jsonschema>=4.18",  # We want a Draft6Validator
-        "numpy>=1.15.4",
+        "numpy>=1.15.4,<2.0",
         "pyproj",
         "rasterio",
         "ruamel.yaml",
@@ -89,6 +89,7 @@ setup(
         "datacube>=1.9.0-rc4",
         "python-rapidjson",
         "pystac>=1.8.4",
+        "odc-geo",
     ],
     tests_require=tests_require,
     extras_require=EXTRAS_REQUIRE,

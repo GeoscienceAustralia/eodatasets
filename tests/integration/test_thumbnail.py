@@ -2,27 +2,27 @@ import tempfile
 from pathlib import Path
 
 import rasterio
+from odc.geo.geobox import GeoBox
 
-from eodatasets3.images import FileWrite, GridSpec
+from eodatasets3.images import (
+    create_thumbnail_singleband,
+    create_thumbnail_singleband_from_numpy,
+)
 
 from . import assert_image
 
 
 def test_thumbnail_bitflag(input_uint8_tif: Path):
-    writer = FileWrite()
-
     outfile = Path(tempfile.gettempdir()) / "test-bitflag.jpg"
 
     water = 128
 
-    writer.create_thumbnail_singleband(input_uint8_tif, Path(outfile), bit=water)
+    create_thumbnail_singleband(input_uint8_tif, Path(outfile), bit=water)
 
     assert_image(outfile, bands=3)
 
 
 def test_thumbnail_lookuptable(input_uint8_tif_2: Path):
-    writer = FileWrite()
-
     outfile = Path(tempfile.gettempdir()) / "test-lookuptable.jpg"
 
     wofs_lookup = {
@@ -37,7 +37,7 @@ def test_thumbnail_lookuptable(input_uint8_tif_2: Path):
         192: [186, 211, 242],  # cloudy water
     }
 
-    writer.create_thumbnail_singleband(
+    create_thumbnail_singleband(
         input_uint8_tif_2, Path(outfile), lookup_table=wofs_lookup
     )
 
@@ -45,15 +45,14 @@ def test_thumbnail_lookuptable(input_uint8_tif_2: Path):
 
 
 def test_thumbnail_from_numpy_bitflag(input_uint8_tif: Path):
-    writer = FileWrite()
     outfile = Path(tempfile.gettempdir()) / "test-bitflag.jpg"
     water = 128
 
     with rasterio.open(input_uint8_tif) as ds:
-        input_geobox = GridSpec.from_rio(ds)
+        input_geobox = GeoBox.from_rio(ds)
         data = ds.read(1)
 
-        image_bytes = writer.create_thumbnail_singleband_from_numpy(
+        image_bytes = create_thumbnail_singleband_from_numpy(
             input_data=data, input_geobox=input_geobox, bit=water
         )
 
@@ -64,7 +63,6 @@ def test_thumbnail_from_numpy_bitflag(input_uint8_tif: Path):
 
 
 def test_thumbnail_from_numpy_lookuptable(input_uint8_tif_2: Path):
-    writer = FileWrite()
     outfile = Path(tempfile.gettempdir()) / "test-lookuptable.jpg"
     wofs_lookup = {
         0: [150, 150, 110],  # dry
@@ -79,10 +77,10 @@ def test_thumbnail_from_numpy_lookuptable(input_uint8_tif_2: Path):
     }
 
     with rasterio.open(input_uint8_tif_2) as ds:
-        input_geobox = GridSpec.from_rio(ds)
+        input_geobox = GeoBox.from_rio(ds)
         data = ds.read(1)
 
-        image_bytes = writer.create_thumbnail_singleband_from_numpy(
+        image_bytes = create_thumbnail_singleband_from_numpy(
             input_data=data, input_geobox=input_geobox, lookup_table=wofs_lookup
         )
 

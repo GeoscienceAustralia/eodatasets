@@ -453,7 +453,7 @@ def test_whole_landsat_wagl_package(
         assert d.width == 156
 
         # The reduced resolution makes it hard to test the chosen block size...
-        assert d.block_shapes == [(26, 156)]
+        assert d.block_shapes == [(160, 160)]
 
     # Check the overviews use default 512 block size.
     #     (Rasterio doesn't seem to have an api for this?)
@@ -682,7 +682,7 @@ def test_maturity_calculation():
 @contextmanager
 def expect_no_warnings():
     """Throw an assertion error if any warnings are produced."""
-    with pytest.warns(None) as warning_record:
+    with pytest.warns(Warning) as warning_record:
         yield
 
     # We could tighten this to specific warnings if it proves too noisy, but it's

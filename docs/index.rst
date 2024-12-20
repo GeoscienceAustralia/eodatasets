@@ -192,13 +192,13 @@ We can record them as source datasets, and the assembler can optionally copy any
 
 
 In these situations, we often write our new pixels as a numpy array, inheriting the existing
-:class:`grid spatial information <eodatasets3.GridSpec>` of our input dataset::
+:class:`grid spatial information <odc.geo.geobox.GeoBox>` of our input dataset::
 
-      # Write a measurement from a numpy array, using the source dataset's grid spec.
+      # Write a measurement from a numpy array, using the source dataset's geobox.
       p.write_measurement_numpy(
          "water",
          my_computed_numpy_array,
-         GridSpec.from_dataset_doc(source_dataset),
+         images.gbox_from_dataset_doc(source_dataset),
          nodata=-999,
       )
 
@@ -218,15 +218,15 @@ in the document will be relative to this location:
 
 .. testsetup:: inmem
 
-   from eodatasets3 import GridSpec
+   from odc.geo.geobox import GeoBox
 
    import tempfile
 
    tmp_path = Path(tempfile.mkdtemp())
 
-   grid_spec = GridSpec(shape=(7721, 7621),
-      transform=Affine(30.0, 0.0, 241485.0, 0.0, -30.0, -2281485.0),
-      crs=CRS.from_epsg(32656)
+   geobox = GeoBox(shape=(7721, 7621),
+      affine=Affine(30.0, 0.0, 241485.0, 0.0, -30.0, -2281485.0),
+      crs=32656
    )
 
    dataset_location = (tmp_path / 'test_dataset')
@@ -243,16 +243,16 @@ in the document will be relative to this location:
 
 
 Normally when a measurement is added, the image will be opened to read
-grid and size informaation. You can avoid this by giving a :class:`GridSpec <eodatasets3.GridSpec>`
-yourself (see :class:`GridSpec doc <eodatasets3.GridSpec>` for creation):
+grid and size informaation. You can avoid this by giving a :class:`GeoBox <odc.geo.geobox.GeoBox>`
+yourself (see :class:`GeoBox doc <odc.geo.geobox.GeoBox>` for creation):
 
 .. doctest:: inmem
 
    >>> p.note_measurement(
    ...     "blue",
    ...     measurement_path,
-   ...     # We give it grid information, so it doesn't have to read it itself.
-   ...     grid=grid_spec,
+   ...     # We give it geobox information, so it doesn't have to read it itself.
+   ...     geobox=geobox,
    ...     # And the image pixels, since we are letting it calculate our geometry.
    ...     pixels=numpy.ones((60, 60), numpy.int16),
    ...     nodata=-1,
