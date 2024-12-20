@@ -453,7 +453,7 @@ def test_whole_landsat_wagl_package(
         assert d.width == 156
 
         # The reduced resolution makes it hard to test the chosen block size...
-        assert d.block_shapes == [(26, 156)]
+        assert d.block_shapes == [(160, 160)]
 
     # Check the overviews use default 512 block size.
     #     (Rasterio doesn't seem to have an api for this?)

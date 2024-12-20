@@ -238,7 +238,7 @@ class MeasurementBundler:
                     f"Duplicate addition of band called {name!r}. "
                     f"Original at {measurements[name]} and now {path}"
                 )
-        if grid.crs.epsg is not None:
+        if grid.crs and grid.crs.epsg is not None:
             grid = GeoBox(grid.shape, grid.affine, grid.crs.epsg)
         self._measurements_per_grid[grid][name] = _MeasurementLocation(path, layer)
         if expand_valid_data:

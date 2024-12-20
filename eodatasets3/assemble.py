@@ -1295,9 +1295,7 @@ class DatasetAssembler(DatasetPrepare):
         self._write_measurement(
             name,
             ds.read(index or 1),
-            GeoBox(
-                ds.shape, ds.transform, ds.crs
-            ),  # GeoBox.from_rio changes the crs format
+            GeoBox.from_rio(ds),
             self._work_path
             / (path or self.names.measurement_filename(name, "tif", file_id=file_id)),
             expand_valid_data=expand_valid_data,
