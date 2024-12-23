@@ -200,12 +200,12 @@ def format_doc_diffs(left: dict, right: dict) -> Iterable[str]:
             )
     if "dictionary_item_added" in doc_diffs:
         out.append("Added fields:")
-        for offset in doc_diffs.tree["dictionary_item_added"].items:
+        for offset in doc_diffs.tree["dictionary_item_added"]:
             offset: DiffLevel
             out.append(f"    {clean_offset(offset.path())} = {offset.t2!r}")
     if "dictionary_item_removed" in doc_diffs:
         out.append("Removed fields:")
-        for offset in doc_diffs.tree["dictionary_item_removed"].items:
+        for offset in doc_diffs.tree["dictionary_item_removed"]:
             offset: DiffLevel
             out.append(f"    {clean_offset(offset.path())} = {offset.t1!r}")
     # Anything we missed from the (sometimes changing) diff api?
