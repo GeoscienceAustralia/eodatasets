@@ -97,7 +97,7 @@ docutils==0.17.1
     # via
     #   sphinx
     #   sphinx-rtd-theme
-fiona==1.9.5
+fiona==1.10.0
     # via eodatasets3 (setup.py)
 flake8==5.0.4
     # via pep8-naming
