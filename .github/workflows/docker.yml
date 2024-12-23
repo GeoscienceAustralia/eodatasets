@@ -7,12 +7,14 @@ on:
   push:
     branches:
       - develop
+      - integrate-1.9
     paths:
       - "**"
 
   pull_request:
     branches:
       - develop
+      - integrate-1.9
 
   release:
     types: [published]
