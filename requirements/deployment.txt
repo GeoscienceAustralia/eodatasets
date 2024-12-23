@@ -91,7 +91,7 @@ h5py==3.7.0
     # via eodatasets3 (setup.py)
 heapdict==1.0.1
     # via zict
-jinja2==3.1.3
+jinja2==3.1.5
     # via distributed
 jmespath==1.0.1
     # via
