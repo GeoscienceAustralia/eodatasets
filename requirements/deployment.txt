@@ -77,7 +77,7 @@ deprecat==2.1.1
     # via datacube
 distributed==2022.10.0
     # via datacube
-fiona==1.9.5
+fiona==1.10.0
     # via eodatasets3 (setup.py)
 fsspec==2022.10.0
     # via dask
