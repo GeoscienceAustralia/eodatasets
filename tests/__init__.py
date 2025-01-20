@@ -56,9 +56,9 @@ def assert_file_structure(folder, expected_structure, root=""):
     optional_filenames = {
         name for name, option in expected_structure.items() if option == "optional"
     }
-    assert (
-        folder.exists()
-    ), f"Expected base folder doesn't even exist! {folder.as_posix()!r}"
+    assert folder.exists(), (
+        f"Expected base folder doesn't even exist! {folder.as_posix()!r}"
+    )
 
     actual_filenames = {f.name for f in folder.iterdir()}
 

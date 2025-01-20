@@ -111,9 +111,9 @@ def test_whole_landsat_wagl_package(
     )
     [output_metadata] = expected_folder.rglob("*.odc-metadata.yaml")
 
-    assert reported_metadata == str(
-        output_metadata
-    ), "Cli didn't report the expected output path"
+    assert reported_metadata == str(output_metadata), (
+        "Cli didn't report the expected output path"
+    )
 
     # Checksum should include all files other than itself.
     [checksum_file] = expected_folder.rglob("*.sha1")
@@ -496,9 +496,9 @@ def _run_wagl(args):
         # The last line of output ends with the dataset path.
         words, reported_metadata = res.output.splitlines()[-1].rsplit(" ", 1)
 
-        assert (
-            res.exit_code == 0
-        ), f"WAGL returned error code. Output:\n{indent(res.output, ' ' * 4)}"
+        assert res.exit_code == 0, (
+            f"WAGL returned error code. Output:\n{indent(res.output, ' ' * 4)}"
+        )
 
     return reported_metadata
 

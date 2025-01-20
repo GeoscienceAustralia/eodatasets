@@ -28,18 +28,18 @@ def assert_image(
         assert d.count == bands, f"Expected {bands} band{'s' if bands > 1 else ''}"
 
         if overviews is not allow_anything:
-            assert (
-                d.overviews(1) == overviews
-            ), f"Unexpected overview: {d.overviews(1)!r} != {overviews!r}"
+            assert d.overviews(1) == overviews, (
+                f"Unexpected overview: {d.overviews(1)!r} != {overviews!r}"
+            )
         if nodata is not allow_anything:
             assert d.nodata == nodata, f"Unexpected nodata: {d.nodata!r} != {nodata!r}"
 
         if unique_pixel_counts is not allow_anything:
             array = d.read(1)
             value_counts = dict(zip(*numpy.unique(array, return_counts=True)))
-            assert (
-                value_counts == unique_pixel_counts
-            ), f"Unexpected pixel counts: {value_counts!r} != {unique_pixel_counts!r}"
+            assert value_counts == unique_pixel_counts, (
+                f"Unexpected pixel counts: {value_counts!r} != {unique_pixel_counts!r}"
+            )
 
         if shape:
             assert shape == d.shape, f"Unexpected shape: {shape!r} != {d.shape!r}"
