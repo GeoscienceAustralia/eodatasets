@@ -78,7 +78,7 @@ DEFAULT_MATURITY = wagl.ProductMaturity.stable
 )
 @click.option(
     "--contiguity-resolution",
-    help="Resolution choice for contiguity " "(default: automatic based on sensor)",
+    help="Resolution choice for contiguity (default: automatic based on sensor)",
     type=float,
     default=None,
 )
