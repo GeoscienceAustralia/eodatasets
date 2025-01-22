@@ -107,6 +107,7 @@ class LazyPlatformAbbreviation:
         "sentinel-1b": "s1b",
         "sentinel-2a": "s2a",
         "sentinel-2b": "s2b",
+        "sentinel-2c": "s2c",
         "aqua": "aqu",
         "terra": "ter",
     }
