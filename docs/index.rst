@@ -664,8 +664,8 @@ Result:
    default              ga_s2am_level4_3-2-3_023543_2013-02-03_final.odc-metadata.yaml   https://test-collection/ga_s2am_level4_3/023/543/2013/02/03/
    dea                  ga_s2am_level4_3-2-3_023543_2013-02-03_final.odc-metadata.yaml   https://test-collection/ga_s2am_level4_3/023/543/2013/02/03/
    dea_s2               ga_s2am_level4_3-2-3_023543_2013-02-03_final.odc-metadata.yaml   https://test-collection/ga_s2am_level4_3/023/543/2013/02/03/20210426T010904/
-   dea_s2_derivative    ga_s2_level4_3_023543_2013-02-03_final.odc-metadata.yaml         https://test-collection/ga_s2_level4_3/1-2-3/023/543/2013/02/03/20210426T010904/
-   dea_c3               ga_s2_level4_3_023543_2013-02-03_final.odc-metadata.yaml         https://test-collection/ga_s2_level4_3/1-2-3/023/543/2013/02/03/
+   dea_s2_derivative    ga_s2_level4_3_023543_2013-02-03_final.odc-metadata.yaml         https://test-collection/ga_s2_level4_3/1-2-3/023/543/2013/02/03/20210426T010904/s2a/
+   dea_c3               ga_s2_level4_3_023543_2013-02-03_final.odc-metadata.yaml         https://test-collection/ga_s2_level4_3/1-2-3/023/543/2013/02/03/s2a/
    deafrica             level4_s2_023543_2013-02-03_final.odc-metadata.yaml              https://test-collection/level4_s2/1-2-3/023/543/2013/02/03/
 
 

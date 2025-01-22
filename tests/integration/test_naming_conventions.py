@@ -74,7 +74,7 @@ def test_dea_s2_derivate_names(tmp_path: Path):
             "sentinel:sentinel_tile_id": "S2B_OPER_MSI_L1C_TL_EPAE_20201011T011446_A018789_T55HFA_N02.09",
         },
         expect_label="esa_s2_eucalyptus_3_55HFA_2018-11-04_final",
-        expect_metadata_path="esa_s2_eucalyptus_3/1-2-3/55/HFA/2018/11/04/20201011T011446/"
+        expect_metadata_path="esa_s2_eucalyptus_3/1-2-3/55/HFA/2018/11/04/20201011T011446/s2a/"
         "esa_s2_eucalyptus_3_55HFA_2018-11-04_final.odc-metadata.yaml",
     )
 
@@ -310,7 +310,7 @@ def test_dea_c3_naming_conventions(tmp_path: Path):
     metadata_path_offset = metadata_path.relative_to(tmp_path).as_posix()
     assert (
         metadata_path_offset
-        == "ga_ls_wo_3/1-6-0/090/081/1998/07/30/ga_ls_wo_3_090081_1998-07-30_interim.odc-metadata.yaml"
+        == "ga_ls_wo_3/1-6-0/090/081/1998/07/30/ls7/ga_ls_wo_3_090081_1998-07-30_interim.odc-metadata.yaml"
     )
 
 
