@@ -153,7 +153,9 @@ def _unpack_products(
                     )
 
 
-def get_quality_masks(dataset: h5py.Dataset, granule: "Granule") -> BandMasks:
+def get_quality_masks(
+    dataset: h5py.Dataset, granule: "Granule", strict=True
+) -> BandMasks:
     """
     Get a dictionary of any quality masks to apply for each band (if any).
     """
@@ -215,6 +217,19 @@ def get_quality_masks(dataset: h5py.Dataset, granule: "Granule") -> BandMasks:
             # (It's in a 'qi' folder with the original filename)
             if not mask_path.exists():
                 mask_path = level1_data_path / "qi" / Path(location).name
+            if not mask_path.exists():
+                # Sinergise seems to simplify the mask filename.
+                mask_path = (
+                    level1_data_path / "qi" / Path(location).name.replace("MSK_", "")
+                )
+            if not mask_path.exists():
+                if strict:
+                    raise ValueError(
+                        f"Mask path {mask_path} does not exist for band {band_id}"
+                    )
+                else:
+                    # Nothing found, and we're not being strict.
+                    return {}
 
             # Skip small ones. See reasoning in ESA block above.
             if mask_path.stat().st_size < 500:
