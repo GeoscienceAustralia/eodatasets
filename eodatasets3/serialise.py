@@ -87,8 +87,9 @@ def _init_yaml() -> YAML:
     yaml.representer.add_representer(numpy.uint32, Representer.represent_int)
     yaml.representer.add_representer(numpy.int64, Representer.represent_int)
     yaml.representer.add_representer(numpy.uint64, Representer.represent_int)
-    yaml.representer.add_representer(numpy.float32, Representer.represent_float)
-    yaml.representer.add_representer(numpy.float64, Representer.represent_float)
+    # Representer.represent_float is currently incompatible with numpy2 floats
+    yaml.representer.add_representer(numpy.float32, _represent_float)
+    yaml.representer.add_representer(numpy.float64, _represent_float)
 
     yaml.representer.add_representer(numpy.ndarray, Representer.represent_list)
     yaml.representer.add_representer(numpy.datetime64, _represent_numpy_datetime)
