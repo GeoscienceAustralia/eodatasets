@@ -615,7 +615,10 @@ def numpy_value_fits_dtype(value, dtype):
     if _is_nan(value):
         return np.issubdtype(dtype, np.floating)
     else:
-        return np.all(np.array([value], dtype=dtype) == [value])
+        try:
+            return np.all(np.array([value], dtype=dtype) == [value])
+        except Exception:  # pylint: disable=broad-except
+            return False
 
 
 @define
