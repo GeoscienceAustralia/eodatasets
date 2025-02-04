@@ -78,7 +78,7 @@ setup(
         "fiona",
         "h5py",
         "jsonschema>=4.18",  # We want a Draft6Validator
-        "numpy>=1.15.4,<2.0",
+        "numpy>=1.15.4",
         "pyproj",
         "rasterio",
         "ruamel.yaml",
@@ -86,7 +86,7 @@ setup(
         "shapely",
         "structlog",
         "xarray",
-        "datacube>=1.9.0-rc4",
+        "datacube>=1.9.0",
         "python-rapidjson",
         "pystac>=1.8.4",
     ],
