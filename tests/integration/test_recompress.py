@@ -1,5 +1,6 @@
 import shutil
 import tarfile
+import warnings
 from pathlib import Path
 
 import pytest
@@ -283,7 +284,9 @@ def _run_recompress(input_path: Path, *args, expected_return=0):
     if isinstance(args, str):
         args = [args]
 
-    with pytest.warns(None) as warning_record:
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+
         res: Result = CliRunner().invoke(
             recompress.main,
             (
@@ -295,12 +298,6 @@ def _run_recompress(input_path: Path, *args, expected_return=0):
             ),
             catch_exceptions=False,
         )
-
-    # We could tighten this to specific warnings if it proves too noisy, but it's
-    # useful for catching things like unclosed files.
-    if warning_record:
-        messages = "\n".join(f"- {w.message}\n" for w in warning_record)
-        raise AssertionError(f"Warnings were produced during recompress:\n {messages}")
 
     if expected_return is not None:
         assert res.exit_code == expected_return, res.output

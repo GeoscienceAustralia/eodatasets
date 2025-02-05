@@ -4,6 +4,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from pprint import pprint
 from textwrap import indent
+import warnings
 
 import pytest
 import rasterio
@@ -682,14 +683,9 @@ def test_maturity_calculation():
 @contextmanager
 def expect_no_warnings():
     """Throw an assertion error if any warnings are produced."""
-    with pytest.warns(None) as warning_record:
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
         yield
-
-    # We could tighten this to specific warnings if it proves too noisy, but it's
-    # useful for catching things like unclosed files.
-    if warning_record:
-        messages = "\n".join(f"- {w.message} ({w})\n" for w in warning_record)
-        raise AssertionError(f"Expected no warnings to be produced, got:\n {messages}")
 
 
 def test_esa_sentinel_wagl_package(tmp_path: Path):
