@@ -1,9 +1,9 @@
 import collections.abc
+import datetime
 import warnings
 from abc import abstractmethod
 from collections import defaultdict
 from collections.abc import Callable, Mapping
-from datetime import datetime
 from enum import Enum, EnumMeta
 from textwrap import dedent
 from typing import Any
@@ -203,7 +203,7 @@ def parsed_sentinel_datastrip_id(tile_id) -> tuple[str, dict]:
 
 
 # The primitive types allowed as stac values.
-PrimitiveType = str | int | float | datetime
+PrimitiveType = str | int | float | datetime.datetime
 
 ExtraProperties = dict
 # A function to normalise a value.
@@ -612,14 +612,14 @@ class Eo3Interface:
         )
 
     @datetime_range.setter
-    def datetime_range(self, val: tuple[datetime, datetime]):
+    def datetime_range(self, val: tuple[datetime.datetime, datetime.datetime]):
         # TODO: string type conversion, better validation/errors
         start, end = val
         self.properties["dtr:start_datetime"] = start
         self.properties["dtr:end_datetime"] = end
 
     @property
-    def processed(self) -> datetime:
+    def processed(self) -> datetime.datetime:
         """When the dataset was created (Defaults to UTC if not specified)
 
         Shorthand for the ``odc:processing_datetime`` field
@@ -627,14 +627,14 @@ class Eo3Interface:
         return self.properties.get("odc:processing_datetime")
 
     @processed.setter
-    def processed(self, value: str | datetime):
+    def processed(self, value: str | datetime.datetime):
         self.properties["odc:processing_datetime"] = value
 
     def processed_now(self):
         """
         Shorthand for when the dataset was processed right now on the current system.
         """
-        self.properties["odc:processing_datetime"] = datetime.utcnow()
+        self.properties["odc:processing_datetime"] = datetime.datetime.now(datetime.UTC)
 
     @property
     def dataset_version(self) -> str:
