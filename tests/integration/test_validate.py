@@ -205,9 +205,9 @@ class ValidateRunner:
         __tracebackhide__ = operator.methodcaller("errisinstance", AssertionError)
         self.run_validate(docs, suffix=suffix or ".yaml")
         was_successful = self.result.exit_code == 0
-        assert (
-            was_successful
-        ), f"Expected validation to succeed. Output:\n{self.result.output}"
+        assert was_successful, (
+            f"Expected validation to succeed. Output:\n{self.result.output}"
+        )
 
         if expect_no_messages and self.messages:
             raise AssertionError(
@@ -218,18 +218,18 @@ class ValidateRunner:
     def assert_invalid(self, *docs: Doc, codes: Sequence[str] = None, suffix=".yaml"):
         __tracebackhide__ = operator.methodcaller("errisinstance", AssertionError)
         self.run_validate(docs, suffix=suffix)
-        assert (
-            self.result.exit_code != 0
-        ), f"Expected validation to fail.\n{self.result.output}"
+        assert self.result.exit_code != 0, (
+            f"Expected validation to fail.\n{self.result.output}"
+        )
 
         if codes is not None:
-            assert (
-                sorted(codes) == sorted(self.messages.keys())
-            ), f"{sorted(codes)} != {sorted(self.messages.keys())}. Messages: {self.messages}"
+            assert sorted(codes) == sorted(self.messages.keys()), (
+                f"{sorted(codes)} != {sorted(self.messages.keys())}. Messages: {self.messages}"
+            )
         else:
-            assert (
-                self.result.exit_code == 1
-            ), f"Expected error code 1 for 1 invalid path. Got {sorted(self.messages.items())}"
+            assert self.result.exit_code == 1, (
+                f"Expected error code 1 for 1 invalid path. Got {sorted(self.messages.items())}"
+            )
 
     def run_validate(self, docs: Sequence[Doc], suffix=".yaml"):
         __tracebackhide__ = operator.methodcaller("errisinstance", AssertionError)
