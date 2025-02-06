@@ -43,8 +43,7 @@ jobs:
       - name: Run tests
         run: |
           source .venv/bin/activate
-          pytest tests
-          pytest --cov eodatasets3 --cov-report=xml --durations=5 -n auto
+          pytest --cov eodatasets3 --cov-report=xml --durations=5 -n 4
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
