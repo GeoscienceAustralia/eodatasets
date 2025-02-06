@@ -1,0 +1,52 @@
+---
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - develop
+      - all-about-uv
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  pre-commit-checks:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v3
+      - uses: pre-commit/action@v3.0.1
+  integration-tests:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Install package in virtual environment
+        run: |
+          uv venv
+          source .venv/bin/activate
+          uv pip install -e .[test]
+
+      - name: Run tests
+        run: |
+          source .venv/bin/activate
+          pytest tests
+          pytest --cov eodatasets3 --cov-report=xml --durations=5
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          fail_ci_if_error: false
