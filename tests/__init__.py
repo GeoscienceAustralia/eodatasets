@@ -25,7 +25,7 @@ def assert_same(o1, o2, prefix=""):
         assert_same(val1, val2, prefix=prefix + "." + str(k))
 
     if isinstance(o1, list) and isinstance(o2, list):
-        assert len(o1) == len(o2), "Differing lengths: %s" % prefix
+        assert len(o1) == len(o2), f"Differing lengths: {prefix}"
 
         for i, val in enumerate(o1):
             _compare(i, val, o2[i])
@@ -36,8 +36,8 @@ def assert_same(o1, o2, prefix=""):
             assert k in o1, f"{prefix}[{k!r}] is missing.\n\t{o2!r}\n\t{o1!r}"
             _compare(k, val, o1[k])
     elif o1 != o2:
-        sys.stderr.write("%r\n" % o1)
-        sys.stderr.write("%r\n" % o2)
+        sys.stderr.write(f"{o1!r}\n")
+        sys.stderr.write(f"{o2!r}\n")
         raise AssertionError(f"Mismatch for property {prefix!r}:  {o1!r} != {o2!r}")
 
 
@@ -64,9 +64,9 @@ def assert_file_structure(folder, expected_structure, root=""):
 
     if required_filenames != (actual_filenames - optional_filenames):
         missing_files = required_filenames - actual_filenames
-        missing_text = "Missing: %r" % sorted(missing_files)
+        missing_text = f"Missing: {sorted(missing_files)!r}"
         extra_files = actual_filenames - required_filenames
-        added_text = "Extra  : %r" % sorted(extra_files)
+        added_text = f"Extra  : {sorted(extra_files)!r}"
         raise AssertionError(
             f"Folder mismatch of {root!r}\n\t{missing_text}\n\t{added_text}"
         )
@@ -138,7 +138,7 @@ def _write_files_to_dir(directory_path, file_dict):
                 elif isinstance(contents, str):
                     f.write(contents)
                 else:
-                    raise Exception("Unexpected file contents: %s" % type(contents))
+                    raise Exception(f"Unexpected file contents: {type(contents)}")
 
 
 def temp_dir():
