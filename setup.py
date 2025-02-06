@@ -14,7 +14,6 @@ README = (HERE / "README.md").read_text(encoding="utf-8")
 
 tests_require = [
     "deepdiff>=8.0",
-    "gdal",
     "mock",
     "pep8-naming",
     "pytest<8",
@@ -31,8 +30,6 @@ EXTRAS_REQUIRE = {
     "ancillary": ["checksumdir", "netCDF4"],
     # Optional valid-data poly handling methods
     "algorithms": ["scikit-image"],
-    # Match the expected environment of our docker image
-    "docker": ["gdal==3.6.3"],
 }
 EXTRAS_REQUIRE["all"] = list(chain(EXTRAS_REQUIRE.values()))
 # Tests need all those optionals too.
