@@ -6,7 +6,6 @@ on:
   push:
     branches:
       - develop
-      - all-about-uv
   workflow_dispatch:
 
 permissions: {}
@@ -22,6 +21,7 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-python@v3
       - uses: pre-commit/action@v3.0.1
+
   integration-tests:
     runs-on: ubuntu-latest
 
@@ -43,7 +43,7 @@ jobs:
       - name: Run tests
         run: |
           source .venv/bin/activate
-          pytest --cov eodatasets3 --cov-report=xml --durations=5 -n 4
+          pytest --cov eodatasets3 --cov-report=xml --durations=5 -n auto
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
