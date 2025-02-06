@@ -442,7 +442,7 @@ def get_oa_resolution_group(
             oa_resolution = (20.0, 20.0)
         else:
             raise NotImplementedError(
-                f"Don't know how to choose a default OA resolution for platform {platform !r}"
+                f"Don't know how to choose a default OA resolution for platform {platform!r}"
             )
 
     res_grp = resolution_groups.get(oa_resolution)

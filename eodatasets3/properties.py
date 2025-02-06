@@ -457,9 +457,7 @@ class Eo3Dict(collections.abc.MutableMapping):
                         self.normalise_and_set(k, v, allow_override=allow_override)
 
         if key in self._props and value != self[key] and (not expect_override):
-            message = (
-                f"Overriding property {key!r} " f"(from {self[key]!r} to {value!r})"
-            )
+            message = f"Overriding property {key!r} (from {self[key]!r} to {value!r})"
             if allow_override:
                 warnings.warn(message, category=PropertyOverrideWarning)
             else:
