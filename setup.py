@@ -16,10 +16,11 @@ tests_require = [
     "deepdiff>=8.0",
     "mock",
     "pep8-naming",
-    "pytest<8",
+    "pytest",
     "rio_cogeo",
     "sphinx-autodoc-typehints",
     "sphinx_rtd_theme",
+    "pytest-xdist",
 ]
 
 EXTRAS_REQUIRE = {

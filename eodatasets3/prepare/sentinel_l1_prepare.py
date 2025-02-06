@@ -11,7 +11,6 @@ import re
 import sys
 import traceback
 import uuid
-import warnings
 import zipfile
 from collections.abc import Iterable, Mapping
 from multiprocessing import Pool
@@ -679,11 +678,6 @@ def main(
     always_granule_id: bool | None,
     index_to_odc: bool,
 ):
-    if sys.argv[1] == "sentinel-l1c":
-        warnings.warn(
-            "Command name 'sentinel-l1c-prepare' is deprecated: remove the 'c', and use `sentinel-l1-prepare`"
-        )
-
     included_regions = None
     if only_regions_in_file:
         included_regions = set(only_regions_in_file.read_text().splitlines())
