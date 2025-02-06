@@ -14,13 +14,14 @@ README = (HERE / "README.md").read_text(encoding="utf-8")
 
 tests_require = [
     "deepdiff>=8.0",
-    "gdal",
     "mock",
     "pep8-naming",
     "pytest",
     "rio_cogeo",
     "sphinx-autodoc-typehints",
     "sphinx_rtd_theme",
+    "pytest-xdist",
+    "pytest-cov",
 ]
 
 EXTRAS_REQUIRE = {
@@ -31,8 +32,6 @@ EXTRAS_REQUIRE = {
     "ancillary": ["checksumdir", "netCDF4"],
     # Optional valid-data poly handling methods
     "algorithms": ["scikit-image"],
-    # Match the expected environment of our docker image
-    "docker": ["gdal==3.6.3"],
 }
 EXTRAS_REQUIRE["all"] = list(chain(EXTRAS_REQUIRE.values()))
 # Tests need all those optionals too.
@@ -78,17 +77,17 @@ setup(
         "fiona",
         "h5py",
         "jsonschema>=4.18",  # We want a Draft6Validator
-        "numpy>=1.15.4,<2.0",
+        "numpy>=1.15.4",
         "pyproj",
         "rasterio",
-        "ruamel.yaml",
+        "ruamel.yaml<0.18",
         "scipy",
         "shapely",
         "structlog",
         "xarray",
-        "datacube>=1.9.0-rc4",
+        "datacube>=1.9.0",
         "python-rapidjson",
-        "pystac>=1.8.4",
+        "pystac>=1.8.4,<1.12",
     ],
     tests_require=tests_require,
     extras_require=EXTRAS_REQUIRE,

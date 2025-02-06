@@ -1,5 +1,6 @@
 import shutil
 import tarfile
+import warnings
 from pathlib import Path
 
 import pytest
@@ -67,9 +68,9 @@ def test_recompress_dataset(base_in_path: Path, in_offset: str, tmp_path: Path):
     )
     assert all_output_files == {str(expected_output.relative_to(output_base))}
 
-    assert (
-        expected_output.exists()
-    ), f"No output produced in expected location {expected_output}."
+    assert expected_output.exists(), (
+        f"No output produced in expected location {expected_output}."
+    )
 
     # It should contain all of our files
     checksums, members = _get_checksums_members(expected_output)
@@ -139,9 +140,9 @@ def test_recompress_gap_mask_dataset(tmp_path: Path):
     )
     assert all_output_files == [str(expected_output)]
 
-    assert (
-        expected_output.exists()
-    ), f"No output produced in expected location {expected_output}."
+    assert expected_output.exists(), (
+        f"No output produced in expected location {expected_output}."
+    )
 
     # It should contain all of our files
     checksums, members = _get_checksums_members(expected_output)
@@ -222,9 +223,9 @@ def test_recompress_dirty_dataset(tmp_path: Path):
     )
     assert all_output_files == [str(expected_output)]
 
-    assert (
-        expected_output.exists()
-    ), f"No output produced in expected location {expected_output}."
+    assert expected_output.exists(), (
+        f"No output produced in expected location {expected_output}."
+    )
 
     checksums, members = _get_checksums_members(expected_output)
 
@@ -283,7 +284,9 @@ def _run_recompress(input_path: Path, *args, expected_return=0):
     if isinstance(args, str):
         args = [args]
 
-    with pytest.warns(None) as warning_record:
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+
         res: Result = CliRunner().invoke(
             recompress.main,
             (
@@ -295,12 +298,6 @@ def _run_recompress(input_path: Path, *args, expected_return=0):
             ),
             catch_exceptions=False,
         )
-
-    # We could tighten this to specific warnings if it proves too noisy, but it's
-    # useful for catching things like unclosed files.
-    if warning_record:
-        messages = "\n".join(f"- {w.message}\n" for w in warning_record)
-        raise AssertionError(f"Warnings were produced during recompress:\n {messages}")
 
     if expected_return is not None:
         assert res.exit_code == expected_return, res.output
@@ -359,8 +356,7 @@ def test_calculate_out_path(tmp_path: Path):
     mtl.write_text("fake mtl")
     assert_path_eq(
         out_base.joinpath(
-            "L1/092_091/LT50920911991126/"
-            "LT05_L1GS_092091_19910506_20170126_01_T2.tar"
+            "L1/092_091/LT50920911991126/LT05_L1GS_092091_19910506_20170126_01_T2.tar"
         ),
         recompress._output_tar_path_from_directory(out_base, path),
     )

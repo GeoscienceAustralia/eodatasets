@@ -596,9 +596,9 @@ def test_skips_old_datasets(l1_ls7_tarball):
         datetime.now().isoformat(),
         str(l1_ls7_tarball),
     )
-    assert (
-        not expected_metadata_path.exists()
-    ), "Dataset should have been skipped due to age"
+    assert not expected_metadata_path.exists(), (
+        "Dataset should have been skipped due to age"
+    )
 
     # It should work with an old date.
     run_prepare_cli(
@@ -608,9 +608,9 @@ def test_skips_old_datasets(l1_ls7_tarball):
         "2014-05-04",
         str(l1_ls7_tarball),
     )
-    assert (
-        expected_metadata_path.exists()
-    ), "Dataset should have been packaged when using an ancient date cutoff"
+    assert expected_metadata_path.exists(), (
+        "Dataset should have been packaged when using an ancient date cutoff"
+    )
 
 
 def expected_lc08_l2_c2_post_20210507_folder(

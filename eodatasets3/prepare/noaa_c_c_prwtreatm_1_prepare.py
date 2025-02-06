@@ -54,7 +54,7 @@ def process_datasets(dataset: Path) -> Iterable[dict]:
 
     """
     datasets = []
-    creation_dt = datetime.datetime.utcnow().replace(tzinfo=datetime.timezone.utc)
+    creation_dt = datetime.datetime.now(datetime.UTC)
     geometry = valid_region([str(dataset)])
 
     with rasterio.open(str(dataset), "r") as collection:

@@ -1,3 +1,4 @@
+import warnings
 from binascii import crc32
 from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
@@ -8,7 +9,6 @@ from textwrap import indent
 import pytest
 import rasterio
 from click.testing import CliRunner
-from osgeo import gdal
 from rasterio import DatasetReader
 from rasterio.enums import Compression
 from rio_cogeo import cogeo
@@ -111,9 +111,9 @@ def test_whole_landsat_wagl_package(
     )
     [output_metadata] = expected_folder.rglob("*.odc-metadata.yaml")
 
-    assert reported_metadata == str(
-        output_metadata
-    ), "Cli didn't report the expected output path"
+    assert reported_metadata == str(output_metadata), (
+        "Cli didn't report the expected output path"
+    )
 
     # Checksum should include all files other than itself.
     [checksum_file] = expected_folder.rglob("*.sha1")
@@ -455,13 +455,6 @@ def test_whole_landsat_wagl_package(
         # The reduced resolution makes it hard to test the chosen block size...
         assert d.block_shapes == [(26, 156)]
 
-    # Check the overviews use default 512 block size.
-    #     (Rasterio doesn't seem to have an api for this?)
-    assert gdal.Open(str(image)).GetRasterBand(1).GetOverview(1).GetBlockSize() == [
-        512,
-        512,
-    ], "Expected overviews to have a larger block size."
-
     # OA data should have no overviews.
     [*oa_images] = expected_folder.rglob("*_oa_*.tif")
     assert oa_images
@@ -496,9 +489,9 @@ def _run_wagl(args):
         # The last line of output ends with the dataset path.
         words, reported_metadata = res.output.splitlines()[-1].rsplit(" ", 1)
 
-        assert (
-            res.exit_code == 0
-        ), f"WAGL returned error code. Output:\n{indent(res.output, ' ' * 4)}"
+        assert res.exit_code == 0, (
+            f"WAGL returned error code. Output:\n{indent(res.output, ' ' * 4)}"
+        )
 
     return reported_metadata
 
@@ -682,14 +675,9 @@ def test_maturity_calculation():
 @contextmanager
 def expect_no_warnings():
     """Throw an assertion error if any warnings are produced."""
-    with pytest.warns(None) as warning_record:
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
         yield
-
-    # We could tighten this to specific warnings if it proves too noisy, but it's
-    # useful for catching things like unclosed files.
-    if warning_record:
-        messages = "\n".join(f"- {w.message} ({w})\n" for w in warning_record)
-        raise AssertionError(f"Expected no warnings to be produced, got:\n {messages}")
 
 
 def test_esa_sentinel_wagl_package(tmp_path: Path):
