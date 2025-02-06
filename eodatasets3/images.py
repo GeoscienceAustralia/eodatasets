@@ -218,8 +218,8 @@ def generate_tiles(
     if ytile is None or ytile < 0:
         ytile = min(100, lines)
 
-    xstart = numpy.arange(0, samples, xtile)
-    ystart = numpy.arange(0, lines, ytile)
+    xstart = range(0, samples, xtile)
+    ystart = range(0, lines, ytile)
 
     tiles = create_tiles(samples, lines, xstart, ystart)
 
