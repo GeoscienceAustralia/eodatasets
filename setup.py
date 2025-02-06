@@ -21,6 +21,7 @@ tests_require = [
     "sphinx-autodoc-typehints",
     "sphinx_rtd_theme",
     "pytest-xdist",
+    "pytest-cov",
 ]
 
 EXTRAS_REQUIRE = {
