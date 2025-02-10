@@ -27,9 +27,9 @@ def test_rescale_intensity():
     )
     unmodified = original_image.copy()
 
-    assert np.array_equal(
-        original_image, unmodified
-    ), "rescale_intensity modified the input image"
+    assert np.array_equal(original_image, unmodified), (
+        "rescale_intensity modified the input image"
+    )
 
     staticly_rescaled = images.rescale_intensity(
         original_image, in_range=(4000, 6000), out_range=(100, 255), image_nodata=-999

@@ -466,7 +466,7 @@ def validate_dataset(
                         yield _error(
                             "different_nodata",
                             f"{name} nodata: "
-                            f"product {expected_nodata !r} != dataset {ds_nodata !r}",
+                            f"product {expected_nodata!r} != dataset {ds_nodata!r}",
                         )
 
 

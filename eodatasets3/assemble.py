@@ -1018,7 +1018,7 @@ class DatasetPrepare(Eo3Interface):
 
         return dedent(
             f"""
-            Assembling {product_name or ''} ({status})
+            Assembling {product_name or ""} ({status})
             - {len(measurements)} measurements: {format_list(measurements)}
             - {len(properties)} properties: {format_list(properties)}
             Writing to location: {output_location}
@@ -1420,7 +1420,7 @@ class DatasetAssembler(DatasetPrepare):
         if file_format != self.properties["odc:file_format"]:
             raise RuntimeError(
                 f"Inconsistent file formats between bands. "
-                f"Was {self.properties['odc:file_format']!r}, now {file_format !r}"
+                f"Was {self.properties['odc:file_format']!r}, now {file_format!r}"
             )
 
         self._measurements.record_image(
