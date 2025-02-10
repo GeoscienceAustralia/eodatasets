@@ -63,7 +63,7 @@ def run(
             json.dump(jsonify_document(item_doc), f, indent=4, default=json_fallback)
 
         if verbose:
-            echo(f'Wrote {style(output_path.as_posix(), "green")}')
+            echo(f"Wrote {style(output_path.as_posix(), 'green')}")
 
 
 def dc_to_stac(
@@ -118,9 +118,7 @@ def json_fallback(o):
         return str(o)
 
     raise TypeError(
-        f"Unhandled type for json conversion: "
-        f"{o.__class__.__name__!r} "
-        f"(object {o!r})"
+        f"Unhandled type for json conversion: {o.__class__.__name__!r} (object {o!r})"
     )
 
 

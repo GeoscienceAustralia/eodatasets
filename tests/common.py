@@ -29,7 +29,7 @@ def check_prepare_outputs(
     try:
         assert_expected_eo3_path(expected_doc, expected_metadata_path, ignore_fields)
     except AssertionError:
-        print(f'Output:\n{indent(res.output, "    ")}')
+        print(f"Output:\n{indent(res.output, '    ')}")
         raise
 
 
@@ -44,9 +44,9 @@ def assert_expected_eo3_path(
     This is slightly smarter about doing geometry equality etc within the document.
     """
     __tracebackhide__ = operator.methodcaller("errisinstance", AssertionError)
-    assert (
-        expected_path.exists()
-    ), f"Expected output EO3 path doesn't exist: {expected_path}"
+    assert expected_path.exists(), (
+        f"Expected output EO3 path doesn't exist: {expected_path}"
+    )
     assert_same_as_file(
         expected_doc,
         expected_path,
@@ -112,9 +112,9 @@ def assert_shapes_mostly_equal(
         shape2 = shape(shape2)
 
     # Check area first, as it's a nicer error message when they're wildly different.
-    assert shape1.area == pytest.approx(
-        shape2.area, abs=threshold
-    ), f"Shapes have different areas: {shape1.area} != {shape2.area}"
+    assert shape1.area == pytest.approx(shape2.area, abs=threshold), (
+        f"Shapes have different areas: {shape1.area} != {shape2.area}"
+    )
 
     s1 = shape1.simplify(tolerance=threshold)
     s2 = shape2.simplify(tolerance=threshold)
@@ -194,8 +194,8 @@ def format_doc_diffs(left: dict, right: dict) -> Iterable[str]:
             out.extend(
                 (
                     f"   {clean_offset(offset)}: ",
-                    f'          {change["old_value"]!r}',
-                    f'       != {change["new_value"]!r}',
+                    f"          {change['old_value']!r}",
+                    f"       != {change['new_value']!r}",
                 )
             )
     if "dictionary_item_added" in doc_diffs:

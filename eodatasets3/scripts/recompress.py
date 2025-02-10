@@ -346,8 +346,7 @@ def _recompress_image(
 @click.option(
     "--output-base",
     type=PathPath(file_okay=False, writable=True),
-    help="The base output directory "
-    "(default to same dir as input if --clean-inputs).",
+    help="The base output directory (default to same dir as input if --clean-inputs).",
 )
 @click.option(
     "--zlevel", type=click.IntRange(0, 9), default=5, help="Deflate compression level."
@@ -417,7 +416,7 @@ def main(
                 )
             else:
                 raise ValueError(
-                    f"Expected either tar.gz or a dataset folder. " f"Got: {path!r}"
+                    f"Expected either tar.gz or a dataset folder. Got: {path!r}"
                 )
 
             if not success:

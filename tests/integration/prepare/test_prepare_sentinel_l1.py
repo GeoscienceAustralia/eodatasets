@@ -477,9 +477,9 @@ def test_filter_folder_structure_info(
         output_folder,
         input_dataset_path,
     )
-    assert (
-        expected_metadata_path.exists()
-    ), f"Expected dataset to be processed (it's within the region file)! {res.output}"
+    assert expected_metadata_path.exists(), (
+        f"Expected dataset to be processed (it's within the region file)! {res.output}"
+    )
     expected_metadata_path.unlink()
 
     # Run with a region list that doesn't include our dataset region.
@@ -493,9 +493,9 @@ def test_filter_folder_structure_info(
         output_folder,
         input_dataset_path,
     )
-    assert (
-        not expected_metadata_path.exists()
-    ), f"Expected dataset to be filtered out! {res.output}"
+    assert not expected_metadata_path.exists(), (
+        f"Expected dataset to be filtered out! {res.output}"
+    )
 
     # Filter the time period
     res = run_prepare_cli(
@@ -508,9 +508,9 @@ def test_filter_folder_structure_info(
         output_folder,
         input_dataset_path,
     )
-    assert (
-        not expected_metadata_path.exists()
-    ), f"Expected dataset to be filtered out! {res.output}"
+    assert not expected_metadata_path.exists(), (
+        f"Expected dataset to be filtered out! {res.output}"
+    )
 
     # Filter the time period
     res = run_prepare_cli(
@@ -523,9 +523,9 @@ def test_filter_folder_structure_info(
         output_folder,
         input_dataset_path,
     )
-    assert (
-        not expected_metadata_path.exists()
-    ), f"Expected dataset to be filtered out! {res.output}"
+    assert not expected_metadata_path.exists(), (
+        f"Expected dataset to be filtered out! {res.output}"
+    )
 
     # Now run for real, expect an output.
     check_prepare_outputs(
