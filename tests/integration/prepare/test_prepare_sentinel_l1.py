@@ -78,6 +78,16 @@ def test_subfolder_info_extraction():
     assert info is None
 
 
+def test_s2c_folder_extraction():
+    # Our new s2c paths should work too.
+    p = Path(
+        "/g/data/fj7/Copernicus/Sentinel-2/MSI/L1C/2025/2025-02/35S130E-40S135E/"
+        "S2C_MSIL1C_20250210T005731_N0511_R002_T53HMA_20250210T042016.zip"
+    )
+    info = FolderInfo.for_path(p)
+    assert info == FolderInfo(2025, 2, "35S130E-40S135E", "53HMA")
+
+
 DATA_PATH = Path(__file__).parent.parent / "data"
 
 ESA_INPUT_DATASET: Path = DATA_PATH / (
