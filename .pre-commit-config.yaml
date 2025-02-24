@@ -5,7 +5,7 @@ exclude: tests/integration/data
 repos:
     # Normalise all Python code. (Black + isort + pyupgrade + autoflake)
     - repo: https://github.com/astral-sh/ruff-pre-commit
-      rev: v0.9.4
+      rev: v0.9.7
       hooks:
        - id: ruff
          args: [--fix, --show-fixes, --output-format, grouped]
@@ -13,7 +13,7 @@ repos:
        - id: ruff-format
     # Common Python security checks. (this is complementary to dlint in flake8)
     - repo: https://github.com/PyCQA/bandit
-      rev: '1.8.2'
+      rev: '1.8.3'
       hooks:
         - id: bandit
           exclude: '^tests/|_version.py|versioneer.py'
